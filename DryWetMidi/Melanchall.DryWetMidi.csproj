@@ -1,0 +1,50 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net45</TargetFrameworks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <LangVersion>6</LangVersion>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <PackageId>Melanchall.DryWetMidi</PackageId>
+    <Version>5.1.0</Version>
+    <Authors>melanchall</Authors>
+    <Owners>melanchall</Owners>
+    <licenseUrl>https://github.com/melanchall/drywetmidi/blob/master/LICENSE</licenseUrl>
+    <PackageProjectUrl>https://github.com/melanchall/drywetmidi</PackageProjectUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/melanchall/drywetmidi/master/Resources/NuGet/icon.png</PackageIconUrl>
+    <RepositoryUrl>https://github.com/melanchall/drywetmidi</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <Description>
+DryWetMIDI is the .NET library to work with MIDI files and MIDI devices. It allows:
+
+* Read, write and create Standard MIDI Files (SMF). It is also possible to read RMID files where SMF wrapped to RIFF chunk.
+* Work with MIDI devices: send/receive MIDI data, play back and record MIDI data.
+* Finely adjust process of reading and writing. It allows, for example, to read corrupted files and repair them, or build MIDI file validators.
+* Implement custom meta events and custom chunks that can be write to and read from MIDI files.
+* Manage MIDI data either with low-level objects, like event, or high-level ones, like note.
+* Build musical compositions.
+* Perform complex musical tasks like quantizing, notes splitting or converting MIDI files to CSV.
+    </Description>
+    <Copyright>Copyright © Melanchall 2020</Copyright>
+    <PackageTags>midi smf music composing notes chords device playback record</PackageTags>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="Serilog.AspNetCore">
+      <Version>3.2.0</Version>
+    </PackageReference>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="Serilog.Sinks.Async" Version="1.4.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="4.1.0" />
+  </ItemGroup>
+
+</Project>
