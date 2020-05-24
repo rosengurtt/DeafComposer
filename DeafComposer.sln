@@ -7,11 +7,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeafComposer.Api", "DeafCom
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeafComposer.Models", "DeafComposer.Models\DeafComposer.Models.csproj", "{9961E2F3-37B4-419E-A597-201A08BD13D0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeafComposer.Persistence", "DeafComposer.Persistence\DeafComposer.Persistence.csproj", "{09EFFF5F-03D4-43B2-8C35-21C7FFD9AA07}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeafComposer.Persistence", "DeafComposer.Persistence\DeafComposer.Persistence.csproj", "{09EFFF5F-03D4-43B2-8C35-21C7FFD9AA07}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeafComposer.Midi", "DeafComposer.Midi\DeafComposer.Midi.csproj", "{1BAD5F43-340A-4D84-8295-93061F0344A3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeafComposer.Midi", "DeafComposer.Midi\DeafComposer.Midi.csproj", "{1BAD5F43-340A-4D84-8295-93061F0344A3}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Melanchall.DryWetMidi", "DryWetMidi\Melanchall.DryWetMidi.csproj", "{03192775-AD14-492B-BCAE-EC956F2FCCEB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeafComposer.Analysis", "DeafComposer.Analysis\DeafComposer.Analysis.csproj", "{C276973E-7F83-4E93-B214-74D2DF421377}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,6 +41,10 @@ Global
 		{03192775-AD14-492B-BCAE-EC956F2FCCEB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{03192775-AD14-492B-BCAE-EC956F2FCCEB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{03192775-AD14-492B-BCAE-EC956F2FCCEB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C276973E-7F83-4E93-B214-74D2DF421377}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C276973E-7F83-4E93-B214-74D2DF421377}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C276973E-7F83-4E93-B214-74D2DF421377}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C276973E-7F83-4E93-B214-74D2DF421377}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
