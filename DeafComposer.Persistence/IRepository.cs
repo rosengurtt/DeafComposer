@@ -50,7 +50,7 @@ namespace DeafComposer.Persistence
         #region SongSimplifications
         Task<SongSimplification> AddSongSimplificationAsync(SongSimplification simpl);
         Task UpdateSongSimplificationAsync(SongSimplification simpl);
-        Task<SongSimplification> GetSongSimplificationAsync(long songId, int version);
+        Task<SongSimplification> GetSongSimplificationBySongIdAndVersionAsync(long songId, int version);
         Task<List<Note>> GetSongSimplificationNotesAsync(long songSimplificationId);
         #endregion
 

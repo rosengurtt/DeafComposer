@@ -13,7 +13,7 @@ namespace DeafComposer.Persistence
         public Repository(DBContext dbcontext, IConfiguration configuration)
         {
             dbContext = dbcontext;
-            ConnectionString = configuration.GetSection("ConnectionStrings:PlagiatorSql").Value;
+            ConnectionString = configuration.GetSection("ConnectionStrings:DeafComposer").Value;
         }
 
         public async Task<TimeSignature> GetTimeSignatureAsync(TimeSignature ts)

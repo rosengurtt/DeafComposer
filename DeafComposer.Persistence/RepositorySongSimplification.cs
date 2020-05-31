@@ -9,7 +9,7 @@ namespace DeafComposer.Persistence
 {
     partial class Repository
     {
-        public async Task<SongSimplification> GetSongSimplificationAsync(long songId, int version)
+        public async Task<SongSimplification> GetSongSimplificationBySongIdAndVersionAsync(long songId, int version)
         {
             var songSimpl = await dbContext.SongSimplifications
                 .Where(s => s.SongId == songId && s.SimplificationVersion == version)

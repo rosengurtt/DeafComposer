@@ -17,8 +17,8 @@ namespace DeafComposer.Analysis
 
             var pitches = notes.OrderBy(m => m.StartSinceBeginningOfSongInTicks).Select(n => n.Pitch).ToList();
             var deltaPitches = new List<int>();
-            // The first delta is calculated using the first pitch and the last pitch
-            deltaPitches.Add(pitches[0] - pitches[pitches.Count() - 1]);
+            // The first delta pitch is 0
+            deltaPitches.Add(0);
             // For the rest is the difference between consecutive pithces
             for (int i = 1; i < pitches.Count(); i++)
                 deltaPitches.Add(pitches[i] - pitches[i - 1]);

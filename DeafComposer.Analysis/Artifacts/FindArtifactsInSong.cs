@@ -10,7 +10,7 @@ namespace DeafComposer.Analysis.Artifacts
     {
         public static Dictionary<Artifact, List<Instance>> FindArtifactsInSong(
         Song song,
-        int version,
+        SongSimplification simpl,
         ArtifactType ArtifactType,
         int minLengthToSearch = 3,
         int maxLengthToSearch = 12)
@@ -18,7 +18,7 @@ namespace DeafComposer.Analysis.Artifacts
             var retObj = new Dictionary<Artifact, List<Instance>>();
             foreach (var instr in song.SongStats.Instruments)
             {
-                var notes = song.SongSimplifications[version].NotesOfInstrument(instr);
+                var notes = simpl.NotesOfInstrument(instr);
                 var voicesNotes = Utilities.GetVoices(notes.ToList());
                 foreach (var voice in voicesNotes.Keys)
                 {
@@ -37,29 +37,28 @@ namespace DeafComposer.Analysis.Artifacts
                             break;
                     }
                     var Artifacts = FindPatternsInListOfStrings(elements, minLengthToSearch, maxLengthToSearch);
-                    foreach (var pat in Artifacts)
+                    foreach (var art in Artifacts)
                     {
-                        var patito = new Artifact() { AsString = pat.Key, ArtifactTypeId = ArtifactType };
-                        var ocur = new List<Instance>();
-                        foreach (var oc in pat.Value)
+                        var artif = new Artifact() { AsString = art.Key, ArtifactTypeId = ArtifactType };
+                        var instances = new List<Instance>();
+                        foreach (var instance in art.Value)
                         {
-                            var firstNote = melody[oc];
-                            var ArtifactLength = pat.Key.Split(",").Length;
-                            var ocNotes = melody.ToArray()[oc..(oc + ArtifactLength)].ToList();
-                            var o = new Instance()
+                            var ArtifactLength = art.Key.Split(",").Length;
+                            var instNotes = melody.ToArray()[instance..(instance + ArtifactLength)].ToList();
+                            var i = new Instance()
                             {
-                                Artifact = patito,
-                                Notes = ocNotes,
-                                SongSimplificationId = song.SongSimplifications[version].Id
+                                Artifact = artif,
+                                Notes = instNotes,
+                                SongSimplificationId = simpl.Id
                             };
-                            ocur.Add(o);
+                            instances.Add(i);
                         }
-                        retObj[patito] = ocur;
+                        retObj[artif] = instances;
                     }
                 }
 
             }
-            return SimplifyArtifactsOcurrences(retObj);
+            return SimplifyArtifactsInstances(retObj);
         }
 
  
@@ -74,26 +73,26 @@ namespace DeafComposer.Analysis.Artifacts
         }
 
 
-        public static Dictionary<Artifact, List<Instance>> SimplifyArtifactsOcurrences(Dictionary<Artifact, List<Instance>> ArtifactsOc)
+        public static Dictionary<Artifact, List<Instance>> SimplifyArtifactsInstances(Dictionary<Artifact, List<Instance>> ArtifactsInst)
         {
-            var Artifacts = ArtifactsOc.Keys.ToList();
+            var Artifacts = ArtifactsInst.Keys.ToList();
 
-            var simplifiedArtifactsOcurrences = new Dictionary<Artifact, List<Instance>>();
+            var simplifiedArtifactsInstances = new Dictionary<Artifact, List<Instance>>();
             foreach (var pat in Artifacts)
             {
                 var patSimplified = SimplifyArtifact(pat);
-                if (!simplifiedArtifactsOcurrences.Keys.Contains(patSimplified))
+                if (!simplifiedArtifactsInstances.Keys.Contains(patSimplified))
                 {
-                    simplifiedArtifactsOcurrences[patSimplified] = new List<Instance>();
+                    simplifiedArtifactsInstances[patSimplified] = new List<Instance>();
                 }
-                foreach (var oc in ArtifactsOc[pat])
+                foreach (var oc in ArtifactsInst[pat])
                 {
                     var clonito = oc.Clone();
                     clonito.Artifact = patSimplified;
-                    simplifiedArtifactsOcurrences[patSimplified].Add(clonito);
+                    simplifiedArtifactsInstances[patSimplified].Add(clonito);
                 }
             }
-            return simplifiedArtifactsOcurrences;
+            return simplifiedArtifactsInstances;
         }
 
     }

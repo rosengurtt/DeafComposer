@@ -16,7 +16,7 @@ namespace DeafComposer.Analysis
             }
             if (artifact.ArtifactTypeId == ArtifactType.MelodyPattern)
                 return artifact.AsString.Split(",")
-                    .Select(x => { var y = x.Split("-"); return int.Parse(y[1].Replace(")", "")); }).ToList();
+                    .Select(x => { var y = x.Split("."); return int.Parse(y[1]); }).ToList();
             return null;
         }
     }

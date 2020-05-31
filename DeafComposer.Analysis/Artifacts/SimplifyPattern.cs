@@ -108,7 +108,7 @@ namespace DeafComposer.Analysis.Artifacts
             if (artifact.ArtifactTypeId == ArtifactType.MelodyPattern)
             {
                 var pitches = Utilities.GetPitchesOfArtifactAsListOfIntegers(artifact);
-                var pitchesWithDurations = pitches.Zip(durations, (p, d) => $"({p}-{d})");
+                var pitchesWithDurations = pitches.Zip(durations, (p, d) => $"({p}.{d})");
                 return new Artifact
                 {
                     AsString = string.Join(",", pitchesWithDurations),
