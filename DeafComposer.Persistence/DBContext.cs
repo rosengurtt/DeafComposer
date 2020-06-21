@@ -28,6 +28,7 @@ namespace DeafComposer.Persistence
 
 
         public DbSet<InstanceNote> InstanceNotes { get; set; }
+        public DbSet<SongAnalysis> SongAnalysis { get; set; }
 
 
 
@@ -46,6 +47,7 @@ namespace DeafComposer.Persistence
             modelBuilder.Entity<Artifact>().ToTable("Artifacts");
             modelBuilder.Entity<Instance>().ToTable("Instances");
             modelBuilder.Entity<InstanceNote>().ToTable("InstanceNotes");
+            modelBuilder.Entity<SongAnalysis>().ToTable("SongAnalysis");
 
             modelBuilder.Entity<Style>()
                 .HasAlternateKey(c => c.Name).HasName("IX_StyleName");

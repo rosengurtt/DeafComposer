@@ -70,6 +70,8 @@ namespace DeafComposer.Persistence
         {
             dbContext.Songs.Add(song);
             await dbContext.SaveChangesAsync();
+            dbContext.SongAnalysis.Add(new SongAnalysis { SongId = song.Id, HavePatternsBeenFound = false });
+            await dbContext.SaveChangesAsync();
             return song;
         }
 
@@ -84,6 +86,17 @@ namespace DeafComposer.Persistence
             dbContext.Songs.Remove(songItem);
             await dbContext.SaveChangesAsync();
         }
+        public async Task<bool> HavePatternsOfSongBeenFound(long songId)
+        {
+            return await dbContext.SongAnalysis.Where(x => x.SongId == songId)
+                .Select(x => x.HavePatternsBeenFound).FirstOrDefaultAsync();
+        }
 
+        public async Task UpdateAnalysisStatusOfSong(long songId, bool havePatternsBeenFound)
+        {
+            var sa = await dbContext.SongAnalysis.Where(x => x.SongId == songId).FirstOrDefaultAsync();
+            sa.HavePatternsBeenFound = havePatternsBeenFound;
+            await dbContext.SaveChangesAsync();
+        }
     }
 }

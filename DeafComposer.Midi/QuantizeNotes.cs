@@ -1,6 +1,7 @@
 ﻿using DeafComposer.Models.Entities;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace DeafComposer.Midi
 {
@@ -30,6 +31,15 @@ namespace DeafComposer.Midi
                 n.DurationInTicks, ticksPerQuarterNote, hasTriplets, true);
             retObj.EndSinceBeginningOfSongInTicks = QuantizePointInTime(n.EndSinceBeginningOfSongInTicks,
              n.DurationInTicks, ticksPerQuarterNote, hasTriplets, false);
+            // We don't want to quantize in such a way that the note ends before a pitch bending on the note
+            // If we find a pitch bending that would be lost, we quantize making the note longer rather than shorter
+            var i = 1;
+            while (n.PitchBending.Where(x => x.TicksSinceBeginningOfSong > retObj.EndSinceBeginningOfSongInTicks).Any())
+            {
+                retObj.EndSinceBeginningOfSongInTicks = QuantizePointInTime(n.EndSinceBeginningOfSongInTicks + i,
+                          n.DurationInTicks, ticksPerQuarterNote, hasTriplets, false);
+                i++;
+            }
             return retObj;
         }
         private static long QuantizePointInTime(long point, int durationInTicks,
@@ -45,8 +55,8 @@ namespace DeafComposer.Midi
             if (quantum == 0)
                 quantum = 1;
             // that was a first aproximation. We want a quantum that divides the
-            // tickPerQuarterNote value. So we find the first larger and the first
-            // smaller values that divide ticksPerNote and we select the one closest
+            // tickPerQuarterNote value. So we find the first larger and the firstclosest
+            // smaller values that divide ticksPerNote and we select the one 
             // to our first aproximation
             int maxQuantum = quantum;
             while (ticksPerQuarterNote % maxQuantum != 0)

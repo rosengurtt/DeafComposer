@@ -51,7 +51,8 @@ namespace DeafComposer.Models.Entities
                 Volume = this.Volume,
                 Instrument = this.Instrument,
                 PitchBending = PitchBending.Select(s => s.Clone()).ToList(),
-                IsPercussion = this.IsPercussion
+                IsPercussion = this.IsPercussion,
+                Voice = this.Voice
             };
         }
         public bool IsEqual(object n)

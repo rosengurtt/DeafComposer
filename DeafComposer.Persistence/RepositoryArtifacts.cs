@@ -13,6 +13,7 @@ namespace DeafComposer.Persistence
 {
     public partial class Repository : IRepository
     {
+
         public async Task<Artifact> GetArtifactByIdAsync(long patternId)
         {
             return await dbContext.Artifacts.FindAsync(patternId);

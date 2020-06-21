@@ -1,4 +1,5 @@
 ﻿using DeafComposer.Analysis.Artifacts;
+using DeafComposer.Analysis.Simplification;
 using DeafComposer.Api.ErrorHandling;
 using DeafComposer.Api.Helpers;
 using DeafComposer.Midi;
@@ -26,21 +27,49 @@ namespace DeafComposer.Api.Controller
             this.Repository = Repository;
         }
         [HttpGet]
-        [Route("pitchPattern")]
-        public async Task<ActionResult> ProcessSong(int songId, int simplificationVersion)
+        [Route("pattern")]
+        public async Task<ActionResult> ProcessPatterns(int songId, int simplificationVersion)
         {
-            var songita = await Repository.GetSongByIdAsync(songId);
-            var simpl = await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simplificationVersion);
+            if (!await Repository.HavePatternsOfSongBeenFound(songId))
+            {
+                var songita = await Repository.GetSongByIdAsync(songId);
+                var simpl = await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simplificationVersion);
 
-            ProcessPatterns(songita, simpl, ArtifactType.PitchPattern);
-            ProcessPatterns(songita, simpl, ArtifactType.RythmPattern);
-            ProcessPatterns(songita, simpl, ArtifactType.MelodyPattern);
+                ProcessPatternsOfType(songita, simpl, ArtifactType.PitchPattern);
+                ProcessPatternsOfType(songita, simpl, ArtifactType.RythmPattern);
+                ProcessPatternsOfType(songita, simpl, ArtifactType.MelodyPattern);
+                await Repository.UpdateAnalysisStatusOfSong(songId, true);
 
-            return Ok(new ApiOKResponse("Data processed"));
+                return Ok(new ApiOKResponse("Song processed"));
+            }
+            else
+                return Ok(new ApiOKResponse("Song was already processed."));
         }
 
+        [HttpGet]
+        [Route("simplification1")]
+        public async Task<ActionResult> MakeSimplification(int songId)
+        {
+            if (songId == 0) return BadRequest(new ApiBadRequestResponse("Must provide songId."));
+            var songita = await Repository.GetSongByIdAsync(songId);
+            if (songita.SongStats.TotalPitchBendEvents > 0)
+            {
+                var simpl0 = await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, 0, true);
 
-        private void ProcessPatterns(Song songita, SongSimplification simpl, ArtifactType type)
+                var notesWithoutBending = SimplificationUtilities.RemoveBendings(simpl0.Notes);
+                var simpl1 = new SongSimplification
+                {
+                    Notes = notesWithoutBending,
+                    SongId = simpl0.SongId,
+                    NumberOfVoices = simpl0.NumberOfVoices
+                };
+                await Repository.AddSongSimplificationAsync(simpl1);
+                return Ok(new ApiOKResponse("Song processed"));
+            }
+            return Ok(new ApiOKResponse("Song has no bendings"));
+        }
+
+        private void ProcessPatternsOfType(Song songita, SongSimplification simpl, ArtifactType type)
         {
             var patterns = ArtifactUtilities.FindArtifactsInSong(songita, simpl, type);
             foreach (var pat in patterns.Keys)
@@ -60,5 +89,7 @@ namespace DeafComposer.Api.Controller
                 }
             }
         }
+  
+    
     }
 }

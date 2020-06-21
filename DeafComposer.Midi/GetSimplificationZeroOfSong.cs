@@ -74,20 +74,17 @@ namespace DeafComposer.Midi
                         PitchBendEvent bendito = eventito as PitchBendEvent;
                         foreach (var notita in currentNotes)
                         {
-                            PitchBendEvent maldito = bendito.Clone() as PitchBendEvent;
-                            maldito.DeltaTime = currentTick;
                             notita.PitchBending.Add(new PitchBendItem
                             {
                                 Note = notita,
-                                Pitch = maldito.PitchValue,
-                                TicksSinceBeginningOfSong = maldito.DeltaTime
+                                Pitch = bendito.PitchValue,
+                                TicksSinceBeginningOfSong = currentTick
                             });
                         }
                         continue;
                     }
                 }
             }
-
             var retObj = new SongSimplification()
             {
                 Notes = notesObj,

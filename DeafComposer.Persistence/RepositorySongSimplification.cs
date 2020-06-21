@@ -9,19 +9,29 @@ namespace DeafComposer.Persistence
 {
     partial class Repository
     {
-        public async Task<SongSimplification> GetSongSimplificationBySongIdAndVersionAsync(long songId, int version)
+        public async Task<SongSimplification> GetSongSimplificationBySongIdAndVersionAsync(long songId, int version, bool includeBendings=false)
         {
             var songSimpl = await dbContext.SongSimplifications
                 .Where(s => s.SongId == songId && s.SimplificationVersion == version)
                 .FirstOrDefaultAsync();
             try
             {
-
-                songSimpl.Notes = await (from ss in dbContext.SongSimplifications
-                                         join ssn in dbContext.SongSimplificationNotes on ss.Id equals ssn.SongSimplificationId
-                                         join n in dbContext.Notes on ssn.NoteId equals n.Id
-                                         where ss.SongId == songId && ss.SimplificationVersion == version
-                                         select n).ToListAsync();
+                if (includeBendings)
+                {
+                    songSimpl.Notes = await (from ss in dbContext.SongSimplifications
+                                             join ssn in dbContext.SongSimplificationNotes on ss.Id equals ssn.SongSimplificationId
+                                             join n in dbContext.Notes on ssn.NoteId equals n.Id
+                                             where ss.SongId == songId && ss.SimplificationVersion == version
+                                             select n).Include(m => m.PitchBending).ToListAsync();
+                }
+                else
+                {
+                    songSimpl.Notes = await (from ss in dbContext.SongSimplifications
+                                             join ssn in dbContext.SongSimplificationNotes on ss.Id equals ssn.SongSimplificationId
+                                             join n in dbContext.Notes on ssn.NoteId equals n.Id
+                                             where ss.SongId == songId && ss.SimplificationVersion == version
+                                             select n).ToListAsync();
+                }
             }
             catch (Exception dfdsfas)
             {

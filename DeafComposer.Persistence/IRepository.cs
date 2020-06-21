@@ -15,6 +15,8 @@ namespace DeafComposer.Persistence
         Task<Song> UpdateSongAsync(Song song);
         Task<Song> AddSongAsync(Song song);
         Task DeleteSongAsync(long songId);
+        Task<bool> HavePatternsOfSongBeenFound(long songId);
+        Task UpdateAnalysisStatusOfSong(long songId, bool havePatternsBeenFound);
         #endregion
         #region Style
         Task<List<Style>> GetStylesAsync(int pageNo, int pageSize, string startWith);
@@ -50,7 +52,7 @@ namespace DeafComposer.Persistence
         #region SongSimplifications
         Task<SongSimplification> AddSongSimplificationAsync(SongSimplification simpl);
         Task UpdateSongSimplificationAsync(SongSimplification simpl);
-        Task<SongSimplification> GetSongSimplificationBySongIdAndVersionAsync(long songId, int version);
+        Task<SongSimplification> GetSongSimplificationBySongIdAndVersionAsync(long songId, int version, bool includeBendings = false);
         Task<List<Note>> GetSongSimplificationNotesAsync(long songSimplificationId);
         #endregion
 

@@ -14,24 +14,14 @@ namespace DeafComposer.Analysis.Simplification
     {
         public static List<Note> RemoveBendings(List<Note> notes)
         {
+            var retObj = new List<Note>();
             int tolerance = 500;
-            var addedNotes = new List<Note>();
             // When the pitch bend value is 8192*1.5 the note has raised 1 semitone,
             // when it is 16384 it has raised 2 semitones
             // We give it a tolerance of 500, so we create a new note when it reaches
             // 8192*1.5 - 500 or 16384 - 500
-            foreach (var n in notes)
+            foreach (var n in notes.OrderBy(x=>x.StartSinceBeginningOfSongInTicks))
             {
-                var noteWithoutBendings = new Note
-                {
-                    Instrument = n.Instrument,
-                    IsPercussion = n.IsPercussion,
-                    Pitch = n.Pitch,
-                    StartSinceBeginningOfSongInTicks = n.StartSinceBeginningOfSongInTicks,
-                    EndSinceBeginningOfSongInTicks = n.EndSinceBeginningOfSongInTicks,
-                    Voice = n.Voice,
-                    Volume = n.Volume
-                };
                 if (n.PitchBending != null && n.PitchBending.Count > 0)
                 {
                     var sortedEvents = n.PitchBending.OrderBy(x => x.TicksSinceBeginningOfSong);
@@ -48,8 +38,12 @@ namespace DeafComposer.Analysis.Simplification
                                     x.TicksSinceBeginningOfSong > startTick).FirstOrDefault();
 
                         // If we don't find such an event, we are done
-                        if (nextPitchChange == null)
+                        if (nextPitchChange == null ||
+                            nextPitchChange.TicksSinceBeginningOfSong >= n.EndSinceBeginningOfSongInTicks)
                         {
+                            var clonito = n.Clone();
+                            clonito.PitchBending = null;
+                            retObj.Add(clonito);
                             keepLooping = false;
                             break;
                         }
@@ -64,6 +58,9 @@ namespace DeafComposer.Analysis.Simplification
                         // next crossing boundary event or the end of the note
                         var endTick = (followingPitchChange == null) ? n.EndSinceBeginningOfSongInTicks :
                                     followingPitchChange.TicksSinceBeginningOfSong;
+                        // There shouldn't be a bending after the note ended, but just in case
+                        if (endTick > n.EndSinceBeginningOfSongInTicks)
+                            endTick = n.EndSinceBeginningOfSongInTicks;
                         // We add the amount of bending to the pitch
                         byte notePitch = (byte)(n.Pitch + Math.Round((currentLevel - 8192) / (double)4096));
                         var addedNote = new Note
@@ -78,22 +75,25 @@ namespace DeafComposer.Analysis.Simplification
                         };
                         // We set the value of startTick  for the next iteration
                         startTick = nextPitchChange.TicksSinceBeginningOfSong;
-                        addedNotes.Add(addedNote);
+                        retObj.Add(addedNote);
                         // If we have added a note immediately after the original note, update
                         // the duration of the original note to finish where the new one starts
                         if (isFirstLoop)
                         {
-                            n.EndSinceBeginningOfSongInTicks = addedNote.StartSinceBeginningOfSongInTicks;
+                            var clonito = n.Clone();
+                            clonito.EndSinceBeginningOfSongInTicks = addedNote.StartSinceBeginningOfSongInTicks;
+                            clonito.PitchBending = null;
                             isFirstLoop = false;
+                            retObj.Add(clonito);
                         }
                     }
                 }
+                else
+                {
+                    retObj.Add(n);
+                }
             }
-            foreach (var n in addedNotes)
-            {
-                notes.Add(n);
-            }
-            return notes;
+            return retObj;
         }
         private static int CalculateCurrentLevel(int number)
         {

@@ -1,5 +1,6 @@
 DROP TABLE IF EXISTS  InstanceNotes
 DROP TABLE IF EXISTS  SongSimplificationNotes
+DROP TABLE IF EXISTS  SongAnalysis
 DROP TABLE IF EXISTS  Instances
 DROP TABLE IF EXISTS  Artifacts
 DROP TABLE IF EXISTS  ArtifactTypes
@@ -326,4 +327,12 @@ REFERENCES Instances (Id)
 ALTER TABLE InstanceNotes  WITH CHECK ADD  CONSTRAINT FK_InstanceNotes_Notes FOREIGN KEY(NoteId)
 REFERENCES Notes (Id)
 
-
+create table SongAnalysis(
+    Id bigint IDENTITY(1,1) primary key clustered NOT NULL,
+    SongId bigint,
+    HavePatternsBeenFound bit
+    )
+ALTER TABLE SongAnalysis  WITH CHECK ADD  CONSTRAINT FK_SongAnalysis_Song FOREIGN KEY(SongId)
+REFERENCES Songs (Id)
+ALTER TABLE SongAnalysis   
+ADD CONSTRAINT FUC_SongAnalysis_Song UNIQUE (SongId); 
