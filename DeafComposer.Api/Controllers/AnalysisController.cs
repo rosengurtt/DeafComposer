@@ -8,14 +8,16 @@ using DeafComposer.Models.Enums;
 using DeafComposer.Persistence;
 using Melanchall.DryWetMidi.Core;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
-namespace DeafComposer.Api.Controller
+namespace DeafComposer.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -46,27 +48,50 @@ namespace DeafComposer.Api.Controller
                 return Ok(new ApiOKResponse("Song was already processed."));
         }
 
+        /// <summary>
+        /// Simplification 1 converts bendings to discrete notes
+        /// Only apply to song that has bendings, and some of those bendings are large enough
+        /// to reach a note that is at least a semitone higher or lower than the original note
+        /// </summary>
+        /// <returns></returns>
         [HttpGet]
         [Route("simplification1")]
-        public async Task<ActionResult> MakeSimplification(int songId)
+        public async Task<ActionResult> MakeSimplification1()
         {
-            if (songId == 0) return BadRequest(new ApiBadRequestResponse("Must provide songId."));
-            var songita = await Repository.GetSongByIdAsync(songId);
-            if (songita.SongStats.TotalPitchBendEvents > 0)
+            int totalSongs = await Repository.GetNumberOfSongsAsync();
+            int currentPage=0;
+            int pageSize = 10;
+            while (currentPage < totalSongs/pageSize + 1)
             {
-                var simpl0 = await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, 0, true);
-
-                var notesWithoutBending = SimplificationUtilities.RemoveBendings(simpl0.Notes);
-                var simpl1 = new SongSimplification
+                currentPage++;
+                var songsToProcess = await Repository.GetSongsAsync(currentPage, pageSize);
+                foreach(var song in songsToProcess)
                 {
-                    Notes = notesWithoutBending,
-                    SongId = simpl0.SongId,
-                    NumberOfVoices = simpl0.NumberOfVoices
-                };
-                await Repository.AddSongSimplificationAsync(simpl1);
-                return Ok(new ApiOKResponse("Song processed"));
+                    // Check that song has bendings
+                    var songStats = (await Repository.GetSongByIdAsync(song.Id)).SongStats;
+                    if (songStats.TotalPitchBendEvents == 0) continue;
+
+                    // Check that song has been processed already
+                    var simpl = await Repository.GetSongSimplificationBySongIdAndVersionAsync(song.Id, 1);
+                    if (simpl != null) continue;
+
+                    // Process song
+                    var simpl0 = await Repository.GetSongSimplificationBySongIdAndVersionAsync(song.Id, 0, true);
+                    var notesWithoutBending = SimplificationUtilities.RemoveBendings(simpl0.Notes);
+                    if (notesWithoutBending.Count > simpl0.Notes.Count)
+                    {
+                        var simpl1 = new SongSimplification
+                        {
+                            Notes = notesWithoutBending,
+                            SongId = simpl0.SongId,
+                            NumberOfVoices = simpl0.NumberOfVoices,
+                            SimplificationVersion = 1
+                        };
+                        await Repository.AddSongSimplificationAsync(simpl1);
+                    }
+                }
             }
-            return Ok(new ApiOKResponse("Song has no bendings"));
+            return Ok(new ApiOKResponse("All songs processed"));
         }
 
         private void ProcessPatternsOfType(Song songita, SongSimplification simpl, ArtifactType type)

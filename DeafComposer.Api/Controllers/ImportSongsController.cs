@@ -12,7 +12,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace DeafComposer.Api.Controller
+namespace DeafComposer.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
