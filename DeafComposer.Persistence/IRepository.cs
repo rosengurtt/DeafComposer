@@ -54,6 +54,8 @@ namespace DeafComposer.Persistence
         Task UpdateSongSimplificationAsync(SongSimplification simpl);
         Task<SongSimplification> GetSongSimplificationBySongIdAndVersionAsync(long songId, int version, bool includeBendings = false);
         Task<List<Note>> GetSongSimplificationNotesAsync(long songSimplificationId);
+
+        Task<List<SongSimplification>> GetSongsSimplificationsOfsongAsync(long songId);
         #endregion
 
     }

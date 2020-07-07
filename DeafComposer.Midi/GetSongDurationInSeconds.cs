@@ -24,7 +24,6 @@ namespace DeafComposer.Midi
                     totalDurationInTicks - tempoEvents[i].DeltaTime;
                 var tempo = ((SetTempoEvent)tempoEvents[i]).MicrosecondsPerQuarterNote;
 
-                var sacamela = GetSeconds(durationInTicks, ticksPerBeat, tempo);
                 durationSoFar += GetSeconds(durationInTicks, ticksPerBeat, tempo);
             }
             return (int)Math.Ceiling(durationSoFar);

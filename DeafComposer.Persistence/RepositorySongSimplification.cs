@@ -12,7 +12,13 @@ namespace DeafComposer.Persistence
 {
     partial class Repository
     {
-        public async Task<SongSimplification> GetSongSimplificationBySongIdAndVersionAsync(long songId, int version, bool includeBendings=false)
+        public async Task<List<SongSimplification>> GetSongsSimplificationsOfsongAsync(long songId)
+        {
+            return await dbContext.SongSimplifications
+               .Where(s => s.SongId == songId)
+               .ToListAsync();
+        }
+        public async Task<SongSimplification> GetSongSimplificationBySongIdAndVersionAsync(long songId, int version, bool includeBendings = false)
         {
             var songSimpl = await dbContext.SongSimplifications
                 .Where(s => s.SongId == songId && s.SimplificationVersion == version)

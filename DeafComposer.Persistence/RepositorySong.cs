@@ -14,7 +14,7 @@ namespace DeafComposer.Persistence
         {
             return await dbContext.Songs.Include(x => x.Style)
                 .Include(x => x.Band)
-                .Include(z => z.SongStats)
+                .Include(z => z.SongStats).ThenInclude(y=>y.TimeSignature)
                 .FirstOrDefaultAsync(x => x.Id == songId);
         }
         public async Task<Song> GetSongByNameAndBandAsync(string songName, string bandName)

@@ -31,7 +31,11 @@ namespace DeafComposer.Api
             {
                 options.SuppressModelStateInvalidFilter = true;
             });
-
+            services.AddMvc()
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.IgnoreNullValues = true;
+                });
 
             services.AddCors(options =>
             {

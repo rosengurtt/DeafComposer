@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using DeafComposer.Persistence;
 using DeafComposer.Api.ErrorHandling;
 using DeafComposer.Models.Entities;
+using System.Collections.Generic;
 
 namespace DeafComposer.Controllers
 {
@@ -41,9 +42,12 @@ namespace DeafComposer.Controllers
 
         // GET: api/Song/5
         [HttpGet("{songId}")]
-        public async Task<IActionResult> GetSong(int songId)
+        public async Task<IActionResult> GetSong(int songId, int simplificationVersion, long startInSeconds = 0)
         {
-            var song = await Repository.GetSongByIdAsync(songId);
+            Song song =  await Repository.GetSongByIdAsync(songId);
+            song.SongSimplifications = new List<SongSimplification>();
+            song.SongSimplifications.Add(
+                await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simplificationVersion));
 
             if (song == null)
                 return NotFound(new ApiResponse(404));
@@ -51,6 +55,27 @@ namespace DeafComposer.Controllers
             return Ok(new ApiOKResponse(song));
         }
 
+
+        [HttpGet("{songId}/simplifications")]
+        public async Task<IActionResult> GetSongSimplifications(long songId)
+        {
+            var simpl = await Repository.GetSongsSimplificationsOfsongAsync(songId);
+
+            if (simpl == null)
+                return NotFound(new ApiResponse(404));
+
+            return Ok(new ApiOKResponse(simpl));
+        }
+        [HttpGet("{songId}/simplifications/{simpVersion}")]
+        public async Task<IActionResult> GetSongSimplification(long songId, int simpVersion)
+        {
+            var simpl = await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simpVersion, true);
+
+            if (simpl == null)
+                return NotFound(new ApiResponse(404));
+
+            return Ok(new ApiOKResponse(simpl));
+        }
         // PUT: api/Song/5
         [HttpPut("{songId}")]
         public async Task<ActionResult> PutSong(int songId, Song song)
