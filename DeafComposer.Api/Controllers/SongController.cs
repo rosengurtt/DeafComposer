@@ -7,6 +7,7 @@ using DeafComposer.Persistence;
 using DeafComposer.Api.ErrorHandling;
 using DeafComposer.Models.Entities;
 using System.Collections.Generic;
+using DeafComposer.Midi;
 
 namespace DeafComposer.Controllers
 {
@@ -24,13 +25,14 @@ namespace DeafComposer.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable>> GetSongs(
             int pageNo = 1,
-            int pageSize = 1000,
+            int pageSize = 10,
             string startWith = null,
-            int? bandId = null)
+            long? styleId = null,
+            long? bandId = null)
         {
-            var totalSongs =await Repository.GetNumberOfSongsAsync(startWith, bandId);
+            var totalSongs =await Repository.GetNumberOfSongsAsync(startWith, styleId, bandId);
          
-            var songs = await Repository.GetSongsAsync(pageNo, pageSize, startWith, bandId);
+            var songs = await Repository.GetSongsAsync(pageNo, pageSize, startWith, styleId, bandId);
             var retObj = new
             {
                 page = pageNo,
@@ -42,15 +44,17 @@ namespace DeafComposer.Controllers
 
         // GET: api/Song/5
         [HttpGet("{songId}")]
-        public async Task<IActionResult> GetSong(int songId, int simplificationVersion, long startInSeconds = 0)
+        public async Task<IActionResult> GetSong(int songId, int simplificationVersion, int startInSeconds = 0)
         {
             Song song =  await Repository.GetSongByIdAsync(songId);
+            if (song == null)
+                return NotFound(new ApiResponse(404));
+
             song.SongSimplifications = new List<SongSimplification>();
             song.SongSimplifications.Add(
                 await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simplificationVersion));
-
-            if (song == null)
-                return NotFound(new ApiResponse(404));
+            if (startInSeconds > 0)
+                song.MidiBase64Encoded = MidiUtilities.GetMidiBytesFromPointInTime(song.MidiBase64Encoded, startInSeconds);     
 
             return Ok(new ApiOKResponse(song));
         }

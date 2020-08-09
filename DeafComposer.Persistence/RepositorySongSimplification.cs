@@ -37,8 +37,7 @@ namespace DeafComposer.Persistence
                     }
                     else
                     {
-                        //songSimpl.Notes 
-                        var sacamela = await (from ss in dbContext.SongSimplifications
+                        songSimpl.Notes = await (from ss in dbContext.SongSimplifications
                                                  join ssn in dbContext.SongSimplificationNotes on ss.Id equals ssn.SongSimplificationId
                                                  join n in dbContext.Notes on ssn.NoteId equals n.Id
                                                  where ss.SongId == songId && ss.SimplificationVersion == version

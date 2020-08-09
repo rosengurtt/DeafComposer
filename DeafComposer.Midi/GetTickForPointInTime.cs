@@ -43,7 +43,7 @@ namespace DeafComposer.Midi
                 if (durationSoFar >= secondsFromBeginningOfSong)
                 {
                     return tempoEvents[i].DeltaTime +
-                        (long)Math.Floor(durationInTicks * (secondsFromBeginningOfSong - previousDuration));
+                        (long)Math.Floor(durationInTicks * (secondsFromBeginningOfSong - previousDuration)/ durationSoFar);
                 }
                 previousDuration = durationSoFar;
             }

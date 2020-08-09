@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +26,13 @@ namespace DeafComposer.Api
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
+
+            services.AddResponseCompression(options =>
+            {
+                options.Providers.Add<GzipCompressionProvider>();
+                options.MimeTypes = new string[]{"application/json"};
+                options.EnableForHttps = true;
+            });
             // The next statement disables the asp.net default automatic validation, so we can control the
             // response we send back when a request is invalid
             services.Configure<ApiBehaviorOptions>(options =>
@@ -57,9 +65,11 @@ namespace DeafComposer.Api
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            app.UseResponseCompression();
             app.UseStatusCodePagesWithReExecute("/error/{0}");
             app.UseExceptionHandler("/error/500");
             app.UseCors("AllowAllOriginsPolicy");
+ 
 
             if (env.IsDevelopment())
             {

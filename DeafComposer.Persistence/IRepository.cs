@@ -8,8 +8,15 @@ namespace DeafComposer.Persistence
     public interface IRepository
     {
         #region Songs
-        Task<List<Song>> GetSongsAsync(int page, int pageSize, string startWith = null, long? bandId = null);
-        Task<int> GetNumberOfSongsAsync(string startWith = null, long? bandId = null);
+        Task<List<Song>> GetSongsAsync(int pageNo = 1,
+            int pageSize = 1000,
+            string startWith = null,
+            long? styleId = null,
+            long? bandId = null);
+        Task<int> GetNumberOfSongsAsync(
+            string startWith = null,
+            long? styleId = null,
+            long? bandId = null);
         Task<Song> GetSongByIdAsync(long songId);
         Task<Song> GetSongByNameAndBandAsync(string songName, string bandName);
         Task<Song> UpdateSongAsync(Song song);

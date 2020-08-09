@@ -1,10 +1,12 @@
 ﻿using DeafComposer.Models.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Linq.Dynamic.Core;
 
 namespace DeafComposer.Persistence
 {
@@ -25,37 +27,43 @@ namespace DeafComposer.Persistence
         public async Task<List<Song>> GetSongsAsync(int pageNo = 1,
             int pageSize = 1000,
             string startWith = null,
+            long? styleId = null,
             long? bandId = null)
         {
-            if (bandId != null && bandId > 0)
-            {
-                return await dbContext.Songs
-                    .Where(x => x.BandId == bandId).Skip((pageNo - 1) * pageSize)
-                    .Take(pageSize).ToListAsync();
-            }
-            if (string.IsNullOrEmpty(startWith))
-                return await dbContext.Songs.Skip((pageNo - 1) * pageSize)
-                    .Take(pageSize).ToListAsync();
-            else
-                return await dbContext.Songs.Where(x => x.Name.StartsWith(startWith))
-                    .Skip((pageNo - 1) * pageSize).Take(pageSize).ToListAsync();
+            IQueryable<Song> source = dbContext.Songs;
+            if (bandId != null && bandId > 0) source = source.Where("BandId == @0", bandId);
+            if (styleId != null && styleId > 0) source = source.Where("StyleId == @0", styleId);
+            if (!string.IsNullOrEmpty(startWith)) source = source.Where("Name.StartsWith(@0)", startWith);
 
+            return await source
+                    .OrderBy(s=>s.Name)
+                    .Include(s => s.Band)
+                    .Include(z => z.Style)
+                    .Skip((pageNo - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(y => new Song
+                    {
+                        Id = y.Id,
+                        Name = y.Name,
+                        Band = y.Band,
+                        Style = y.Style
+                    })
+                    .ToListAsync();      
+                   
         }
 
 
         public async Task<int> GetNumberOfSongsAsync(
             string startWith = null,
+            long? styleId=null,
             long? bandId = null)
         {
-            if (bandId != null && bandId > 0)
-            {
-                return await dbContext.Songs
-                    .Where(x => x.BandId == bandId).CountAsync();
-            }
-            if (string.IsNullOrEmpty(startWith))
-                return await dbContext.Songs.CountAsync();
-            else
-                return await dbContext.Songs.Where(x => x.Name.StartsWith(startWith)).CountAsync();
+            IQueryable<Song> source = dbContext.Songs;
+            if (bandId != null && bandId > 0) source = source.Where("BandId == @0", bandId);
+            if (styleId != null && styleId > 0) source = source.Where("StyleId == @0", styleId);
+            if (!string.IsNullOrEmpty(startWith)) source = source.Where("Name.StartsWith(@0)", startWith);
+
+            return await source.CountAsync();
         }
 
 

@@ -23,7 +23,7 @@ namespace DeafComposer.Midi
             foreach (TrackChunk ch in midiFile.Chunks)
             {
                 var chunky = new TrackChunk();
-                var acumChunk = ConvertAccumulatedTimeToDeltaTime(ch.Events.ToList());
+                var acumChunk = ConvertDeltaTimeToAccumulatedTime(ch.Events.ToList());
                 // We filter out note on and note off events that come before tick
                 var eventos = acumChunk.Where(x =>
                 (x.EventType != MidiEventType.NoteOn && x.EventType != MidiEventType.NoteOff)
