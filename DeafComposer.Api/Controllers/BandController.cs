@@ -21,8 +21,8 @@ namespace DeafComposer.Api.Controllers
         // GET: api/Band?pageSize=10&pageNo=2
         [HttpGet]
         public async Task<ActionResult<IEnumerable>> GetBands(
-            int pageNo = 1,
-            int pageSize = 10000,
+            int pageNo = 0,
+            int pageSize = 10,
             string startWith = null,
             int? styleId = null)
         {
@@ -31,7 +31,9 @@ namespace DeafComposer.Api.Controllers
             var bands = await Repository.GetBandsAsync(pageNo, pageSize, startWith, styleId);
             var retObj = new
             {
-                page = pageNo,
+                pageNo,
+                pageSize,
+                totalItems = totalBands,
                 totalPages = (int)Math.Ceiling((double)totalBands / pageSize),
                 bands
             };

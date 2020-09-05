@@ -12,27 +12,23 @@ namespace DeafComposer.Persistence
     {
 
         public async Task<List<Style>> GetStylesAsync(
-            int pageNo = 1,
+            int pageNo = 0,
             int pageSize = 10,
             string startWith = null)
         {
             if (string.IsNullOrEmpty(startWith))
-                return await dbContext.Styles.OrderBy(x => x.Name).Skip((pageNo - 1) * pageSize).Take(pageSize).ToListAsync();
+                return await dbContext.Styles.OrderBy(x => x.Name).Skip((pageNo) * pageSize).Take(pageSize).ToListAsync();
             else
-                return await dbContext.Styles.OrderBy(x => x.Name).Where(x => x.Name.StartsWith(startWith)).Skip((pageNo - 1) * pageSize).Take(pageSize).ToListAsync();
+                return await dbContext.Styles.OrderBy(x => x.Name).Where(x => x.Name.StartsWith(startWith)).Skip((pageNo) * pageSize).Take(pageSize).ToListAsync();
         }
         public async Task<int> GetNumberOfStylesAsync(
-            int pageNo = 1,
-            int pageSize = 10,
             string startWith = null)
         {
             if (string.IsNullOrEmpty(startWith))
-                return await dbContext.Styles.OrderBy(x => x.Name)
-                    .Skip((pageNo - 1) * pageSize).Take(pageSize).CountAsync();
+                return await dbContext.Styles.OrderBy(x => x.Name).CountAsync();
             else
                 return await dbContext.Styles.OrderBy(x => x.Name)
-                    .Where(x => x.Name.StartsWith(startWith))
-                    .Skip((pageNo - 1) * pageSize).Take(pageSize).CountAsync();
+                    .Where(x => x.Name.StartsWith(startWith)).CountAsync();
         }
         public async Task<Style> GetStyleByIdAsync(long styleId)
         {

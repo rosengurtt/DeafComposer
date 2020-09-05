@@ -24,8 +24,9 @@ namespace DeafComposer.Persistence
             return await dbContext.Songs.FirstOrDefaultAsync(x => x.Name == songName & x.Band.Name == bandName);
         }
 
-        public async Task<List<Song>> GetSongsAsync(int pageNo = 1,
-            int pageSize = 1000,
+        public async Task<List<Song>> GetSongsAsync(
+            int pageNo = 0,
+            int pageSize = 10,
             string startWith = null,
             long? styleId = null,
             long? bandId = null)
@@ -39,7 +40,7 @@ namespace DeafComposer.Persistence
                     .OrderBy(s=>s.Name)
                     .Include(s => s.Band)
                     .Include(z => z.Style)
-                    .Skip((pageNo - 1) * pageSize)
+                    .Skip((pageNo) * pageSize)
                     .Take(pageSize)
                     .Select(y => new Song
                     {
@@ -48,8 +49,7 @@ namespace DeafComposer.Persistence
                         Band = y.Band,
                         Style = y.Style
                     })
-                    .ToListAsync();      
-                   
+                    .ToListAsync();                         
         }
 
 

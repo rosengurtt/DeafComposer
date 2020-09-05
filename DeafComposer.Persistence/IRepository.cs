@@ -27,7 +27,7 @@ namespace DeafComposer.Persistence
         #endregion
         #region Style
         Task<List<Style>> GetStylesAsync(int pageNo, int pageSize, string startWith);
-        Task<int> GetNumberOfStylesAsync(int pageNo, int pageSize, string startWith);
+        Task<int> GetNumberOfStylesAsync(string startWith);
         Task<Style> GetStyleByIdAsync(long styleId);
         Task<Style> GetStyleByNameAsync(string name);
         Task<Style> AddStyleAsync(Style style);

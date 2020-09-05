@@ -21,13 +21,15 @@ namespace DeafComposer.Controllers
             this.Repository = Repository;
         }
         [HttpGet]
-        public async Task<ActionResult<IEnumerable>> GetStylesAsync(int pageNo = 1, int pageSize = 10, string startWith = null)
+        public async Task<ActionResult<IEnumerable>> GetStylesAsync(int pageNo = 0, int pageSize = 10, string startWith = null)
         {
-            var totaStyles = await Repository.GetNumberOfStylesAsync(pageNo, pageSize, startWith);
+            var totaStyles = await Repository.GetNumberOfStylesAsync(startWith);
             var styles = await Repository.GetStylesAsync(pageNo, pageSize, startWith);
             var retObj = new
             {
-                page = pageNo,
+                pageNo,
+                pageSize,
+                totalItems = totaStyles,
                 totalPages = (int)Math.Ceiling((double)totaStyles / pageSize),
                 styles
             };

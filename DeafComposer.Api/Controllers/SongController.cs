@@ -24,7 +24,7 @@ namespace DeafComposer.Controllers
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable>> GetSongs(
-            int pageNo = 1,
+            int pageNo = 0,
             int pageSize = 10,
             string startWith = null,
             long? styleId = null,
@@ -35,7 +35,9 @@ namespace DeafComposer.Controllers
             var songs = await Repository.GetSongsAsync(pageNo, pageSize, startWith, styleId, bandId);
             var retObj = new
             {
-                page = pageNo,
+                pageNo,
+                pageSize,
+                totalItems = totalSongs,
                 totalPages = (int)Math.Ceiling((double)totalSongs / pageSize),
                 songs
             };

@@ -10,8 +10,8 @@ namespace DeafComposer.Persistence
     partial class Repository
     {
         public async Task<List<Band>> GetBandsAsync(
-                  int pageNo = 1,
-                  int pageSize = 10000,
+                  int pageNo = 0,
+                  int pageSize = 10,
                   string startWith = null,
                   long? styleId = null)
         {
@@ -19,15 +19,15 @@ namespace DeafComposer.Persistence
             {
                 return await dbContext.Bands
                     .Where(x => x.Style.Id == styleId).OrderBy(x => x.Name)
-                    .Skip((pageNo - 1) * pageSize).Take(pageSize).ToListAsync();
+                    .Skip((pageNo) * pageSize).Take(pageSize).ToListAsync();
             }
             else if (string.IsNullOrEmpty(startWith))
                 return await dbContext.Bands.OrderBy(x => x.Name)
-                    .Skip((pageNo - 1) * pageSize).Take(pageSize).ToListAsync();
+                    .Skip((pageNo) * pageSize).Take(pageSize).ToListAsync();
             else
                 return await dbContext.Bands.OrderBy(x => x.Name)
                     .Where(x => x.Name.StartsWith(startWith))
-                    .Skip((pageNo - 1) * pageSize).Take(pageSize).ToListAsync();
+                    .Skip((pageNo) * pageSize).Take(pageSize).ToListAsync();
         }
         public async Task<int> GetNumberOfBandsAsync(
             string startWith = null,
