@@ -4,45 +4,43 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Linq.Dynamic.Core;
 
 namespace DeafComposer.Persistence
 {
     partial class Repository
     {
+
+        private string GetWhereStringForGetBands(string contains = null, long? styleId = null)
+        {
+            string dynamicQuery = "1==1";
+            if (styleId != null && styleId > 0) dynamicQuery += $" && StyleId == {styleId}";
+            if (!string.IsNullOrEmpty(contains)) dynamicQuery += $" && Name.Contains(\"{contains}\")";
+            return dynamicQuery;
+        }
         public async Task<List<Band>> GetBandsAsync(
                   int pageNo = 0,
                   int pageSize = 10,
-                  string startWith = null,
+                  string contains = null,
                   long? styleId = null)
         {
-            if (styleId != null)
-            {
-                return await dbContext.Bands
-                    .Where(x => x.Style.Id == styleId).OrderBy(x => x.Name)
-                    .Skip((pageNo) * pageSize).Take(pageSize).ToListAsync();
-            }
-            else if (string.IsNullOrEmpty(startWith))
-                return await dbContext.Bands.OrderBy(x => x.Name)
-                    .Skip((pageNo) * pageSize).Take(pageSize).ToListAsync();
-            else
-                return await dbContext.Bands.OrderBy(x => x.Name)
-                    .Where(x => x.Name.StartsWith(startWith))
-                    .Skip((pageNo) * pageSize).Take(pageSize).ToListAsync();
+            IQueryable<Band> source = dbContext.Bands;
+            source = source.Where(GetWhereStringForGetBands(contains, styleId));
+
+            return await source
+                      .OrderBy(s => s.Name)
+                      .Include(z => z.Style)
+                      .Skip((pageNo) * pageSize)
+                      .Take(pageSize)
+                      .ToListAsync();
         }
         public async Task<int> GetNumberOfBandsAsync(
-            string startWith = null,
+            string contains = null,
             long? styleId = null)
         {
-            if (styleId != null)
-            {
-                return await dbContext.Bands
-                    .Where(x => x.Style.Id == styleId).OrderBy(x => x.Name).CountAsync();
-            }
-            else if (string.IsNullOrEmpty(startWith))
-                return await dbContext.Bands.OrderBy(x => x.Name).CountAsync();
-            else
-                return await dbContext.Bands.OrderBy(x => x.Name)
-                    .Where(x => x.Name.StartsWith(startWith)).CountAsync();
+            IQueryable<Band> source = dbContext.Bands;
+            source = source.Where(GetWhereStringForGetBands(contains, styleId));
+            return await source.CountAsync();
         }
 
         public async Task<Band> GetBandByIdAsync(long bandId)

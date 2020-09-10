@@ -23,12 +23,12 @@ namespace DeafComposer.Api.Controllers
         public async Task<ActionResult<IEnumerable>> GetBands(
             int pageNo = 0,
             int pageSize = 10,
-            string startWith = null,
+            string contains = null,
             int? styleId = null)
         {
-            var totalBands = await Repository.GetNumberOfBandsAsync(startWith, styleId);
+            var totalBands = await Repository.GetNumberOfBandsAsync(contains, styleId);
 
-            var bands = await Repository.GetBandsAsync(pageNo, pageSize, startWith, styleId);
+            var bands = await Repository.GetBandsAsync(pageNo, pageSize, contains, styleId);
             var retObj = new
             {
                 pageNo,

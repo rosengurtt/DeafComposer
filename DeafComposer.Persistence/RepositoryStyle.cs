@@ -3,32 +3,38 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
+using System.Linq.Dynamic.Core;
 
 namespace DeafComposer.Persistence
 {
     partial class Repository
     {
+        private string GetWhereStringForGetSongs(string contains = null)
+        {
+            string dynamicQuery = "1==1";
+            if (!string.IsNullOrEmpty(contains)) dynamicQuery += $" && Name.Contains(\"{contains}\")";
+            return dynamicQuery;
+        }
 
         public async Task<List<Style>> GetStylesAsync(
             int pageNo = 0,
             int pageSize = 10,
-            string startWith = null)
+            string contains = null)
         {
-            if (string.IsNullOrEmpty(startWith))
-                return await dbContext.Styles.OrderBy(x => x.Name).Skip((pageNo) * pageSize).Take(pageSize).ToListAsync();
-            else
-                return await dbContext.Styles.OrderBy(x => x.Name).Where(x => x.Name.StartsWith(startWith)).Skip((pageNo) * pageSize).Take(pageSize).ToListAsync();
-        }
+            IQueryable<Style> source = dbContext.Styles;
+            source = source.Where(GetWhereStringForGetSongs(contains));
+
+            return await source.OrderBy(x => x.Name).Skip((pageNo) * pageSize).Take(pageSize).ToListAsync();
+
+       }
         public async Task<int> GetNumberOfStylesAsync(
-            string startWith = null)
+            string contains = null)
         {
-            if (string.IsNullOrEmpty(startWith))
-                return await dbContext.Styles.OrderBy(x => x.Name).CountAsync();
-            else
-                return await dbContext.Styles.OrderBy(x => x.Name)
-                    .Where(x => x.Name.StartsWith(startWith)).CountAsync();
+            IQueryable<Style> source = dbContext.Styles;
+            source = source.Where(GetWhereStringForGetSongs(contains));
+
+            return await source.CountAsync();
         }
         public async Task<Style> GetStyleByIdAsync(long styleId)
         {

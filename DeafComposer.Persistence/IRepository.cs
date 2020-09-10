@@ -10,11 +10,11 @@ namespace DeafComposer.Persistence
         #region Songs
         Task<List<Song>> GetSongsAsync(int pageNo = 1,
             int pageSize = 1000,
-            string startWith = null,
+            string contains = null,
             long? styleId = null,
             long? bandId = null);
         Task<int> GetNumberOfSongsAsync(
-            string startWith = null,
+            string contains = null,
             long? styleId = null,
             long? bandId = null);
         Task<Song> GetSongByIdAsync(long songId);
@@ -35,8 +35,8 @@ namespace DeafComposer.Persistence
         Task DeleteStyleAsync(long styleId);
         #endregion
         #region Bands
-        Task<List<Band>> GetBandsAsync(int pageNo, int pageSize, string startWith = null, long? styleId = null);
-        Task<int> GetNumberOfBandsAsync(string startWith = null, long? styleId = null);
+        Task<List<Band>> GetBandsAsync(int pageNo, int pageSize, string contains = null, long? styleId = null);
+        Task<int> GetNumberOfBandsAsync(string contains = null, long? styleId = null);
         Task<Band> GetBandByIdAsync(long bandId);
         Task<Band> GetBandByNameAsync(string name);
         Task<Band> AddBandAsync(Band band);

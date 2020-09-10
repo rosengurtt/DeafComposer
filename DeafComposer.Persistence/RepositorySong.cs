@@ -27,41 +27,46 @@ namespace DeafComposer.Persistence
         public async Task<List<Song>> GetSongsAsync(
             int pageNo = 0,
             int pageSize = 10,
-            string startWith = null,
+            string contains = null,
             long? styleId = null,
             long? bandId = null)
         {
             IQueryable<Song> source = dbContext.Songs;
-            if (bandId != null && bandId > 0) source = source.Where("BandId == @0", bandId);
-            if (styleId != null && styleId > 0) source = source.Where("StyleId == @0", styleId);
-            if (!string.IsNullOrEmpty(startWith)) source = source.Where("Name.StartsWith(@0)", startWith);
+            source = source.Where(GetWhereStringForGetSongs(contains, styleId, bandId));
 
             return await source
-                    .OrderBy(s=>s.Name)
-                    .Include(s => s.Band)
-                    .Include(z => z.Style)
-                    .Skip((pageNo) * pageSize)
-                    .Take(pageSize)
-                    .Select(y => new Song
-                    {
-                        Id = y.Id,
-                        Name = y.Name,
-                        Band = y.Band,
-                        Style = y.Style
-                    })
-                    .ToListAsync();                         
+                      .OrderBy(s => s.Name)
+                      .Include(s => s.Band)
+                      .Include(z => z.Style)
+                      .Skip((pageNo) * pageSize)
+                      .Take(pageSize)
+                      .Select(y => new Song
+                      {
+                          Id = y.Id,
+                          Name = y.Name,
+                          Band = y.Band,
+                          Style = y.Style
+                      })
+                      .ToListAsync();
+        }
+
+        private  string GetWhereStringForGetSongs(string contains = null,long? styleId = null,long? bandId = null)
+        {
+            string dynamicQuery = "1==1";
+            if (bandId != null && bandId > 0) dynamicQuery += $" && BandId == {bandId}";
+            if (styleId != null && styleId > 0) dynamicQuery += $" && StyleId == {styleId}";
+            if (!string.IsNullOrEmpty(contains)) dynamicQuery += $" && Name.Contains(\"{contains}\")";
+            return dynamicQuery;
         }
 
 
         public async Task<int> GetNumberOfSongsAsync(
-            string startWith = null,
+            string contains = null,
             long? styleId=null,
             long? bandId = null)
         {
             IQueryable<Song> source = dbContext.Songs;
-            if (bandId != null && bandId > 0) source = source.Where("BandId == @0", bandId);
-            if (styleId != null && styleId > 0) source = source.Where("StyleId == @0", styleId);
-            if (!string.IsNullOrEmpty(startWith)) source = source.Where("Name.StartsWith(@0)", startWith);
+            source = source.Where(GetWhereStringForGetSongs(contains, styleId, bandId));
 
             return await source.CountAsync();
         }

@@ -26,13 +26,13 @@ namespace DeafComposer.Controllers
         public async Task<ActionResult<IEnumerable>> GetSongs(
             int pageNo = 0,
             int pageSize = 10,
-            string startWith = null,
+            string contains = null,
             long? styleId = null,
             long? bandId = null)
         {
-            var totalSongs =await Repository.GetNumberOfSongsAsync(startWith, styleId, bandId);
+            var totalSongs =await Repository.GetNumberOfSongsAsync(contains, styleId, bandId);
          
-            var songs = await Repository.GetSongsAsync(pageNo, pageSize, startWith, styleId, bandId);
+            var songs = await Repository.GetSongsAsync(pageNo, pageSize, contains, styleId, bandId);
             var retObj = new
             {
                 pageNo,
@@ -57,6 +57,18 @@ namespace DeafComposer.Controllers
                 await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simplificationVersion));
             if (startInSeconds > 0)
                 song.MidiBase64Encoded = MidiUtilities.GetMidiBytesFromPointInTime(song.MidiBase64Encoded, startInSeconds);     
+
+            return Ok(new ApiOKResponse(song));
+        }
+
+        // GET: api/Song/5/Info
+        [HttpGet("{songId}/Info")]
+        public async Task<IActionResult> GetSongInfo(int songId)
+        {
+            Song song = await Repository.GetSongByIdAsync(songId);
+            song.MidiBase64Encoded = "";
+            if (song == null)
+                return NotFound(new ApiResponse(404));
 
             return Ok(new ApiOKResponse(song));
         }
