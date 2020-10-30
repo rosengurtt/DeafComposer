@@ -8,6 +8,11 @@ using DeafComposer.Api.ErrorHandling;
 using DeafComposer.Models.Entities;
 using System.Collections.Generic;
 using DeafComposer.Midi;
+using System.Net;
+using System.Net.Http;
+using System.IO;
+using System.Net.Http.Headers;
+using System.Net.Mime;
 
 namespace DeafComposer.Controllers
 {
@@ -46,7 +51,7 @@ namespace DeafComposer.Controllers
 
         // GET: api/Song/5
         [HttpGet("{songId}")]
-        public async Task<IActionResult> GetSong(int songId, int simplificationVersion, int startInSeconds = 0)
+        public async Task<IActionResult> GetSong(int songId, int simplificationVersion)
         {
             Song song =  await Repository.GetSongByIdAsync(songId);
             if (song == null)
@@ -55,10 +60,26 @@ namespace DeafComposer.Controllers
             song.SongSimplifications = new List<SongSimplification>();
             song.SongSimplifications.Add(
                 await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simplificationVersion));
-            if (startInSeconds > 0)
-                song.MidiBase64Encoded = MidiUtilities.GetMidiBytesFromPointInTime(song.MidiBase64Encoded, startInSeconds);     
+    
 
             return Ok(new ApiOKResponse(song));
+        }
+
+        [HttpGet("{songId}/midi")]
+        public async Task<IActionResult> GetSongMidi(int songId, int simplificationVersion, int startInSeconds = 0)
+        {
+            Song song = await Repository.GetSongByIdAsync(songId);
+            if (song == null)
+                return null;
+
+            song.SongSimplifications = new List<SongSimplification>();
+            song.SongSimplifications.Add(
+                await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simplificationVersion));
+
+            var ms = new MemoryStream(MidiUtilities.GetMidiBytesFromPointInTime(song.MidiBase64Encoded, startInSeconds));
+
+
+            return File(ms, MediaTypeNames.Text.Plain, "mierda.mid");
         }
 
         // GET: api/Song/5/Info

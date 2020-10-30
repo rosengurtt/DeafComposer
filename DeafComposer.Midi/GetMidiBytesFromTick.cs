@@ -10,11 +10,17 @@ namespace DeafComposer.Midi
     public static partial class MidiUtilities
     {
         /// <summary>
+
+        public static string GetMidiBytesFromTickBase64Encoded(string base64EncodedMidi, long tick)
+        {    
+            return Convert.ToBase64String(GetMidiBytesFromTick(base64EncodedMidi, tick));
+        }
+
         /// Given a midi file of a song, it returns a midi file with all the notes that
-        /// come before a certain tick removed. In this way we can play a midi file starting
+        /// come after a certain tick. In this way we can play a midi file starting
         /// from any arbitrary point in time
         /// </summary>
-        public static string GetMidiBytesFromTick(string base64EncodedMidi, long tick)
+        public static byte[] GetMidiBytesFromTick(string base64EncodedMidi, long tick)
         {
             var midiFile = MidiFile.Read(base64EncodedMidi);
             var mf = new MidiFile();
@@ -34,12 +40,10 @@ namespace DeafComposer.Midi
             using (MemoryStream memStream = new MemoryStream(1000000))
             {
                 mf.Write(memStream);
-                var bytes = memStream.ToArray();
-                return Convert.ToBase64String(bytes);
+                return memStream.ToArray();
             }
         }
-
-        public static string GetMidiBytesFromPointInTime(string base64EncodedMidi, int secondsFromBeginningOfSong)
+        public static byte[] GetMidiBytesFromPointInTime(string base64EncodedMidi, int secondsFromBeginningOfSong)
         {
             var tick = GetTickForPointInTime(base64EncodedMidi, secondsFromBeginningOfSong);
             return GetMidiBytesFromTick(base64EncodedMidi, tick);
