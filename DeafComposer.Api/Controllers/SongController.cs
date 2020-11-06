@@ -57,6 +57,7 @@ namespace DeafComposer.Controllers
             if (song == null)
                 return NotFound(new ApiResponse(404));
 
+            song.MidiBase64Encoded = null;
             song.SongSimplifications = new List<SongSimplification>();
             song.SongSimplifications.Add(
                 await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simplificationVersion));
@@ -76,10 +77,26 @@ namespace DeafComposer.Controllers
             song.SongSimplifications.Add(
                 await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simplificationVersion));
 
-            var ms = new MemoryStream(MidiUtilities.GetMidiBytesFromPointInTime(song.MidiBase64Encoded, startInSeconds));
+            try
+            {
+                var ms = new MemoryStream(MidiUtilities.GetMidiBytesFromPointInTime(song.MidiBase64Encoded, startInSeconds));
 
+                //var ms2= new MemoryStream(MidiUtilities.GetMidiBytesFromPointInTime(song.MidiBase64Encoded, startInSeconds));
+                //using (FileStream file=new FileStream(@"c:\music\sorete.mid", FileMode.Create, System.IO.FileAccess.Write))
+                //{
+                //    var bytes = new byte[ms2.Length];
+                //    ms2.Read(bytes, 0, (int)ms.Length);
+                //    file.Write(bytes, 0, bytes.Length);
+                //    ms2.Close();
+                //}
 
-            return File(ms, MediaTypeNames.Text.Plain, "mierda.mid");
+                return File(ms, MediaTypeNames.Text.Plain, song.Name);
+            }
+            catch(Exception ex)
+            {
+
+            }
+            return null;
         }
 
         // GET: api/Song/5/Info

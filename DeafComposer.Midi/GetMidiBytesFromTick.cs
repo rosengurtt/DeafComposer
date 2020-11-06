@@ -34,6 +34,13 @@ namespace DeafComposer.Midi
                 var eventos = acumChunk.Where(x =>
                 (x.EventType != MidiEventType.NoteOn && x.EventType != MidiEventType.NoteOff)
                 || x.DeltaTime > tick).OrderBy(y => y.DeltaTime).ToList();
+                // Update delta time so song starts at "tick"
+                eventos = eventos.Select(x =>
+                {
+                    if (x.DeltaTime <= tick) x.DeltaTime = 0;
+                    else x.DeltaTime -= tick;
+                    return x;
+                }).ToList();
                 chunky.Events._events = ConvertAccumulatedTimeToDeltaTime(eventos);
                 mf.Chunks.Add(chunky);
             }
