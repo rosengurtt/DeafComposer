@@ -13,6 +13,7 @@ using System.Net.Http;
 using System.IO;
 using System.Net.Http.Headers;
 using System.Net.Mime;
+using System.Linq;
 
 namespace DeafComposer.Controllers
 {
@@ -67,22 +68,24 @@ namespace DeafComposer.Controllers
         }
 
         [HttpGet("{songId}/midi")]
-        public async Task<IActionResult> GetSongMidi(int songId, int simplificationVersion, int startInSeconds = 0)
+        public async Task<IActionResult> GetSongMidi(int songId, int simplificationVersion, int startInSeconds = 0, string mutedTracks = null)
         {
-            Song song = await Repository.GetSongByIdAsync(songId);
-            if (song == null)
-                return null;
-
-            song.SongSimplifications = new List<SongSimplification>();
-            song.SongSimplifications.Add(
-                await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simplificationVersion));
-
             try
             {
-                var ms = new MemoryStream(MidiUtilities.GetMidiBytesFromPointInTime(song.MidiBase64Encoded, startInSeconds));
+                Song song = await Repository.GetSongByIdAsync(songId);
+                if (song == null)
+                    return null;
+                int[] tracksToMute = mutedTracks?.Split(',').Select(x => int.Parse(x)).ToArray();
 
-                //var ms2= new MemoryStream(MidiUtilities.GetMidiBytesFromPointInTime(song.MidiBase64Encoded, startInSeconds));
-                //using (FileStream file=new FileStream(@"c:\music\sorete.mid", FileMode.Create, System.IO.FileAccess.Write))
+                song.SongSimplifications = new List<SongSimplification>();
+                song.SongSimplifications.Add(
+                    await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simplificationVersion, false, tracksToMute));
+                var base64encodedMidiBytes = MidiUtilities.GetMidiBytesFromNotes(song.SongSimplifications[0].Notes, song.TempoChanges);
+
+                var ms = new MemoryStream(MidiUtilities.GetMidiBytesFromPointInTime(base64encodedMidiBytes, startInSeconds));
+
+                //var ms2 = new MemoryStream(MidiUtilities.GetMidiBytesFromPointInTime(song.MidiBase64Encoded, startInSeconds));
+                //using (FileStream file = new FileStream(@"c:\music\sorete.mid", FileMode.Create, System.IO.FileAccess.Write))
                 //{
                 //    var bytes = new byte[ms2.Length];
                 //    ms2.Read(bytes, 0, (int)ms.Length);
@@ -92,7 +95,7 @@ namespace DeafComposer.Controllers
 
                 return File(ms, MediaTypeNames.Text.Plain, song.Name);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
 
             }

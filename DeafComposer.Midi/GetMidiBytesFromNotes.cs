@@ -73,7 +73,8 @@ namespace DeafComposer.Midi
         /// <returns></returns>
         private static List<Note> ResetTimeOfNotes(List<Note> notes)
         {
-            var firstNote = notes.OrderBy(n => n.StartSinceBeginningOfSongInTicks).First();
+            if (notes == null || notes.Count == 0) return notes;
+            var firstNote = notes?.OrderBy(n => n.StartSinceBeginningOfSongInTicks).First();
             return notes.Select(n => ResetTimeOfNote(n, firstNote.StartSinceBeginningOfSongInTicks)).ToList();
         }
         private static Note ResetTimeOfNote(Note n, long noTicks)

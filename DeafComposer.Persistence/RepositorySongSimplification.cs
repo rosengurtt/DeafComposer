@@ -18,13 +18,16 @@ namespace DeafComposer.Persistence
                .Where(s => s.SongId == songId)
                .ToListAsync();
         }
-        public async Task<SongSimplification> GetSongSimplificationBySongIdAndVersionAsync(long songId, int version, bool includeBendings = false)
+        public async Task<SongSimplification> GetSongSimplificationBySongIdAndVersionAsync(
+            long songId, 
+            int version, 
+            bool includeBendings = false,
+            int[] mutedTracks = null)
         {
             var songSimpl = await dbContext.SongSimplifications
                 .Where(s => s.SongId == songId && s.SimplificationVersion == version)
                 .FirstOrDefaultAsync();
-            try
-            {
+    
                 if (songSimpl != null)
                 {
                     if (includeBendings)
@@ -44,10 +47,13 @@ namespace DeafComposer.Persistence
                                                  select n).ToListAsync();
                     }
                 }
-            }
-            catch (Exception dfdsfas)
+   
+                if (mutedTracks!= null)
             {
-
+                foreach(var i in mutedTracks)
+                {
+                    songSimpl.Notes = songSimpl.Notes.Where(x => x.Voice != i).ToList();
+                }
             }
             return songSimpl;
         }
