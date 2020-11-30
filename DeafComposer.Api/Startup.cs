@@ -53,7 +53,6 @@ namespace DeafComposer.Api
                     builder.AllowAnyOrigin();
                 });
             });
-            services.AddMvc();
             var connection = Configuration.GetConnectionString("DeafComposer");
             services.AddDbContext<DBContext>(options => options.UseSqlServer(connection,
             opts => opts.CommandTimeout((int)TimeSpan.FromMinutes(5).TotalSeconds)));

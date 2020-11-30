@@ -19,38 +19,38 @@ namespace DeafComposer.Persistence
                .ToListAsync();
         }
         public async Task<SongSimplification> GetSongSimplificationBySongIdAndVersionAsync(
-            long songId, 
-            int version, 
+            long songId,
+            int version,
             bool includeBendings = false,
             int[] mutedTracks = null)
         {
             var songSimpl = await dbContext.SongSimplifications
                 .Where(s => s.SongId == songId && s.SimplificationVersion == version)
                 .FirstOrDefaultAsync();
-    
-                if (songSimpl != null)
-                {
-                    if (includeBendings)
-                    {
-                        songSimpl.Notes = await (from ss in dbContext.SongSimplifications
-                                                 join ssn in dbContext.SongSimplificationNotes on ss.Id equals ssn.SongSimplificationId
-                                                 join n in dbContext.Notes on ssn.NoteId equals n.Id
-                                                 where ss.SongId == songId && ss.SimplificationVersion == version
-                                                 select n).Include(m => m.PitchBending).ToListAsync();
-                    }
-                    else
-                    {
-                        songSimpl.Notes = await (from ss in dbContext.SongSimplifications
-                                                 join ssn in dbContext.SongSimplificationNotes on ss.Id equals ssn.SongSimplificationId
-                                                 join n in dbContext.Notes on ssn.NoteId equals n.Id
-                                                 where ss.SongId == songId && ss.SimplificationVersion == version
-                                                 select n).ToListAsync();
-                    }
-                }
-   
-                if (mutedTracks!= null)
+
+            if (songSimpl != null)
             {
-                foreach(var i in mutedTracks)
+                if (includeBendings)
+                {
+                    songSimpl.Notes = await (from ss in dbContext.SongSimplifications
+                                             join ssn in dbContext.SongSimplificationNotes on ss.Id equals ssn.SongSimplificationId
+                                             join n in dbContext.Notes on ssn.NoteId equals n.Id
+                                             where ss.SongId == songId && ss.SimplificationVersion == version
+                                             select n).Include(m => m.PitchBending).ToListAsync();
+                }
+                else
+                {
+                    songSimpl.Notes = await (from ss in dbContext.SongSimplifications
+                                             join ssn in dbContext.SongSimplificationNotes on ss.Id equals ssn.SongSimplificationId
+                                             join n in dbContext.Notes on ssn.NoteId equals n.Id
+                                             where ss.SongId == songId && ss.SimplificationVersion == version
+                                             select n).ToListAsync();
+                }
+            }
+            songSimpl.Notes = songSimpl.Notes.OrderBy(x => x.StartSinceBeginningOfSongInTicks).ToList();
+            if (mutedTracks != null)
+            {
+                foreach (var i in mutedTracks)
                 {
                     songSimpl.Notes = songSimpl.Notes.Where(x => x.Voice != i).ToList();
                 }
