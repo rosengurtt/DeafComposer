@@ -98,6 +98,76 @@ namespace DeafComposer.Midi
         }
 
         /// <summary>
+        /// We want the drum voices to be at the end, and when there are several voices with the same instrument
+        /// we want the higher pitch voices first (in this way if we have the left and the right hand of a piano
+        /// in 2 different voices, we want the right hand first)
+        /// </summary>
+        /// <param name="notes"></param>
+        /// <returns></returns>
+        private static List<Note> ReorderVoices(List<Note> notes)
+        {
+            // The variable newVoice is used to generate the numbers of the reordered voices
+            byte newVoice = 0;
+            var retObj = new List<Note>();
+            // first split the notes by instrument
+            var noteInstrument = notes.Where(m => m.IsPercussion == false).GroupBy(n => n.Instrument).OrderBy(x => x);
+            // now loop by instrument
+            foreach (var noteInstGroup in noteInstrument)
+            {
+                // get notes of instrument
+                var instrNotes = notes.Where(n => n.Instrument == noteInstGroup.Key);
+                // get the order of this instrument voices by pitch
+                var orderedInstrVoices = OrderInstrumentVoicesByPitch(instrNotes);
+                // loop on the instrument voices
+                foreach (var voice in orderedInstrVoices)
+                {
+                    // add to the return object the notes of this voice, assigning a new voice number
+                    foreach (var n in notes.Where(m => m.Voice == voice))
+                    {
+                        var m = n.Clone();
+                        m.Voice = newVoice;
+                        retObj.Add(m);
+                    }
+                    // increment the voice number so the next group of notes will get the next available integer
+                    newVoice++;
+                }
+            }
+            // now add the percusion notes
+            foreach(var n in notes.Where(n => n.IsPercussion == true))
+            {
+                var m = n.Clone();
+                m.Voice = newVoice;
+                retObj.Add(m);
+            }
+            return retObj;
+        }
+        // Returns the voice numbers ordered by the average pitch of their notes, higher averages first
+        private static IEnumerable<byte> OrderInstrumentVoicesByPitch(IEnumerable<Note> notes)
+        {
+            var voicesAveragePitches = new Dictionary<byte, double>();
+            foreach (var v in GetInstrumentVoicesOfNotes(notes))
+            {
+                voicesAveragePitches[v] = getAveragePitchOfNOtes(notes.Where(n => n.Voice == v));
+            }
+            return voicesAveragePitches.Keys.OrderByDescending(x => x);
+        }
+
+        private static double getAveragePitchOfNOtes(IEnumerable<Note> notes)
+        {
+            return notes.Average(n => n.Pitch);
+        }
+        private static List<byte> GetInstrumentVoicesOfNotes(IEnumerable<Note> notes)
+        {
+            var instrumentsNotes = notes.Where(n => n.IsPercussion == false);
+            return instrumentsNotes.Select(n => n.Voice).Distinct().ToList();
+        }
+        private static List<byte> getPercusionVoicesOfNotes(List<Note> notes)
+        {
+            var instrumentsNotes = notes.Where(n => n.IsPercussion == true);
+            return instrumentsNotes.Select(n => n.Voice).Distinct().ToList();
+        }
+
+        /// <summary>
         /// A single track may be polyphonic in the sense that 2 or more notes that start and stop 
         /// independently are played simultaneously. When the 2 notes start and stop at the
         /// same time, then we can consider them to be 1 voice.

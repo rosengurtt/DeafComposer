@@ -12,5 +12,10 @@ namespace DeafComposer.Models.Entities
         public long Id { get; set; }
         public int Numerator { get; set; }
         public int Denominator { get; set; }
+
+        public TimeSignature Clone()
+        {
+            return (TimeSignature)this.MemberwiseClone();
+        }
     }
 }

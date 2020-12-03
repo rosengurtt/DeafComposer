@@ -5,7 +5,7 @@ namespace DeafComposer.Midi
 {
     public static partial class MidiUtilities
     {
-        public static int GetTicksPerBeatOfSong(string base64encodedMidiFile)
+        public static int GetTicksPerQuarterNote(string base64encodedMidiFile)
         {
             var midiFile = MidiFile.Read(base64encodedMidiFile);
             var ticksPerQuarter = midiFile.TimeDivision as TicksPerQuarterNoteTimeDivision;
