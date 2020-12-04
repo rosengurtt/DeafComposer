@@ -88,9 +88,14 @@ namespace DeafComposer.Midi
             }
 
             notesObj = notesObj.OrderBy(n => n.StartSinceBeginningOfSongInTicks).ToList();
+
+            // Split voices that have more than one melody playing at the same time
+            notesObj = SplitPolyphonicVoiceInMonophonicVoices(notesObj);
+            // Reorder voices so when we have for ex the left and right hand of a piano in 2 voices, the right hand comes first
+            notesObj = ReorderVoices(notesObj);
             var retObj = new SongSimplification()
             {
-                Notes = SplitPolyphonicVoiceInMonophonicVoices(notesObj),
+                Notes = notesObj,
                 SimplificationVersion = 0,
                 NumberOfVoices = chunkNo
             };
@@ -236,10 +241,10 @@ namespace DeafComposer.Midi
                 Math.Max(m.StartSinceBeginningOfSongInTicks, n.StartSinceBeginningOfSongInTicks) <
                 Math.Min(m.EndSinceBeginningOfSongInTicks, n.EndSinceBeginningOfSongInTicks) - tolerance &&
                 // they don't start and end both at the same time
-                (Math.Max(m.StartSinceBeginningOfSongInTicks, n.StartSinceBeginningOfSongInTicks) < tolerance &&
-                Math.Max(m.EndSinceBeginningOfSongInTicks, n.EndSinceBeginningOfSongInTicks) < tolerance) &&
+                (Math.Abs(m.StartSinceBeginningOfSongInTicks - n.StartSinceBeginningOfSongInTicks) > tolerance &&
+                Math.Abs(m.EndSinceBeginningOfSongInTicks - n.EndSinceBeginningOfSongInTicks) > tolerance) &&
                 // pitch is higher than note under consideration
-                (m.Pitch > n.Pitch &&
+                (m.Pitch > n.Pitch ||
                 //pitch is the same as note under consideration, but duration is longer
                 (m.Pitch == n.Pitch && m.DurationInTicks > n.DurationInTicks)))
                 .ToList();
