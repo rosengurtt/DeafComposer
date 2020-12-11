@@ -154,7 +154,8 @@ namespace DeafComposer.Midi
             {
                 voicesAveragePitches[v] = getAveragePitchOfNOtes(notes.Where(n => n.Voice == v));
             }
-            return voicesAveragePitches.Keys.OrderByDescending(x => x);
+            var reorderedDic = voicesAveragePitches.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value);
+            return reorderedDic.Keys;
         }
 
         private static double getAveragePitchOfNOtes(IEnumerable<Note> notes)
