@@ -232,17 +232,19 @@ namespace DeafComposer.Midi
         // When there are several notes playing at the same time but they start and end together, then all of
         // them are returned. The notes not returned are notes played simultaneously with upper notes,
         // that start and/or stop on different times of the upper notes  by a margin greater than 'tolerance'
-        private static List<Note> GetUpperVoice(List<Note> notes, int tolerance = 6)
+        private static List<Note> GetUpperVoice(List<Note> notes)
         {
             var retObj = new List<Note>();
             foreach (var n in notes.OrderBy(m => m.StartSinceBeginningOfSongInTicks))
             {
+                var tolerance = n.DurationInTicks / 10;
+
                 var simulNotes = notes.Where(m =>
                 // intersection is significant
                 Math.Max(m.StartSinceBeginningOfSongInTicks, n.StartSinceBeginningOfSongInTicks) <
                 Math.Min(m.EndSinceBeginningOfSongInTicks, n.EndSinceBeginningOfSongInTicks) - tolerance &&
                 // they don't start and end both at the same time
-                (Math.Abs(m.StartSinceBeginningOfSongInTicks - n.StartSinceBeginningOfSongInTicks) > tolerance &&
+                (Math.Abs(m.StartSinceBeginningOfSongInTicks - n.StartSinceBeginningOfSongInTicks) > tolerance ||
                 Math.Abs(m.EndSinceBeginningOfSongInTicks - n.EndSinceBeginningOfSongInTicks) > tolerance) &&
                 // pitch is higher than note under consideration
                 (m.Pitch > n.Pitch ||
