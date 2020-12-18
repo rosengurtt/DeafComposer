@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 
 namespace DeafComposer.Models.Entities
@@ -13,6 +15,9 @@ namespace DeafComposer.Models.Entities
             PitchBending = new List<PitchBendItem>();
         }
         public long Id { get; set; }
+
+        [NotMapped]
+        public Guid TempId { get; set; }
 
         public byte Pitch { get; set; }
         public byte Volume { get; set; }
