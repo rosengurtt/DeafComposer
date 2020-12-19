@@ -86,20 +86,17 @@ namespace DeafComposer.Midi
                     }
                 }
             }
-
-            notesObj = notesObj.OrderBy(n => n.StartSinceBeginningOfSongInTicks).ToList();
+            notesObj = notesObj.OrderBy(x => x.StartSinceBeginningOfSongInTicks).ToList();
+            notesObj = QuantizeNotes(notesObj);
             notesObj = RemoveDuplicateNotes(notesObj);
-            var problems = GetProblematicNotes(notesObj, 0, true);
-            if (problems.Count > 0)
-            {
-
-            }
             notesObj = CorrectNotesTimings(notesObj);
 
             // Split voices that have more than one melody playing at the same time
             notesObj = SplitPolyphonicVoiceInMonophonicVoices(notesObj);
+
             // Reorder voices so when we have for ex the left and right hand of a piano in 2 voices, the right hand comes first
             notesObj = ReorderVoices(notesObj);
+
             if (!AreVoicesMonophonic(notesObj))
             {
                 var kiki = GetProblematicNotes(notesObj);
@@ -128,8 +125,8 @@ namespace DeafComposer.Midi
                 {
                     foreach (var m in notes.Where(y => y.Voice == v && n.TempId != y.TempId))
                     {
-                        if (GetIntersectionOfNotesInTicks(m, n) <= tolerance) continue;
-                        if (notesOfSamePitch && m.Pitch != n.Pitch) continue;
+                        if (GetIntersectionOfNotesInTicks(m, n) == 0) continue;
+             
                         var soret = new List<Note>();
                         if (!AreNotesExactlySimultaneous(m, n))
                         {
@@ -154,15 +151,19 @@ namespace DeafComposer.Midi
         /// <returns></returns>
         private static List<Note> RemoveDuplicateNotes(List<Note> notes)
         {
+            // We first copy all the notes to retObj, we will then remove and alter notes in rettObj, but the original notes are left unchanged
+            var retObj = new List<Note>();
+            notes.ForEach(n => retObj.Add(n.Clone()));
+            retObj = retObj.OrderBy(x => x.StartSinceBeginningOfSongInTicks).ToList();
             // If 2 notes with the same pitch and the same instrument start at the same time, we remove the 
             // one with the lower volume, or if the volume is more or less the same, the shortest one
             var notesToRemove = new List<Note>();
             var volumeTolerance = 5;    // The amount the volumes have to differ to consider them different
-            var voices = GetVoicesOfNotes(notes);
-            foreach(var v in voices)
+            var voices = GetVoicesOfNotes(retObj);
+            foreach (var v in voices)
             {
-                var notesOfVoice = notes.Where(w => w.Voice == v)
-                                    .OrderBy(z=>z.StartSinceBeginningOfSongInTicks).ToList();
+                var notesOfVoice = retObj.Where(w => w.Voice == v)
+                                    .OrderBy(z => z.StartSinceBeginningOfSongInTicks).ToList();
                 for (var i = 0; i < notesOfVoice.Count - 1; i++)
                 {
                     for (var j = i + 1; j < notesOfVoice.Count; j++)
@@ -200,11 +201,8 @@ namespace DeafComposer.Midi
 
             }
             // Now remove the duplicate notes
-            foreach (var n in notesToRemove)
-            {
-                notes.Remove(n);
-            }
-            return notes.OrderBy(x => x.StartSinceBeginningOfSongInTicks).ToList();
+            foreach (var n in notesToRemove) retObj.Remove(n);
+            return retObj.OrderBy(x => x.StartSinceBeginningOfSongInTicks).ToList();
         }
 
         /// <summary>
@@ -217,13 +215,17 @@ namespace DeafComposer.Midi
         /// <param name="notes"></param>
         /// <returns></returns>
         private static List<Note> CorrectNotesTimings(List<Note> notes)
-        {
-            for (var i = 0; i < notes.Count - 1; i++)
+        {  
+            // We first copy all the notes to retObj, we will then remove and alter notes in rettObj, but the original notes are left unchanged
+            var retObj = new List<Note>();
+            notes.ForEach(n => retObj.Add(n.Clone()));
+            retObj = retObj.OrderBy(x => x.StartSinceBeginningOfSongInTicks).ToList();
+            for (var i = 0; i < retObj.Count - 1; i++)
             {
-                for (var j = i + 1; j < notes.Count; j++)
+                for (var j = i + 1; j < retObj.Count; j++)
                 {
-                    var ni = notes[i];
-                    var nj = notes[j];
+                    var ni = retObj[i];
+                    var nj = retObj[j];
                     var tolerance = GetTolerance(ni, nj);
                     var dif = Math.Abs(ni.StartSinceBeginningOfSongInTicks - nj.StartSinceBeginningOfSongInTicks);
                     // If any of the notes is very short, then don't change the timings
@@ -242,7 +244,7 @@ namespace DeafComposer.Midi
                     }
                 }
             }
-            return notes;
+            return retObj;
         }
         /// <summary>
         /// When we want to clean the timing of notes, we have to consider the duration of the notes
@@ -324,9 +326,17 @@ namespace DeafComposer.Midi
             {
                 foreach (var n in notes.Where(x => x.Voice == v))
                 {
+                    if (n.StartSinceBeginningOfSongInTicks >= 1440)
+                    {
+
+                    }
                     foreach (var m in notes.Where(y => y.Voice == v && n.TempId != y.TempId))
                     {
-                        if (GetIntersectionOfNotesInTicks(m, n) <= tolerance) continue;
+                        if (m.StartSinceBeginningOfSongInTicks > 1440)
+                        {
+
+                        }
+                        if (GetIntersectionOfNotesInTicks(m, n) == 0)  continue;
                         if (!AreNotesExactlySimultaneous(m,n)) return false;
                     }
                 }
@@ -366,23 +376,27 @@ namespace DeafComposer.Midi
         /// <returns></returns>
         private static List<Note> ReorderVoices(List<Note> notes)
         {
+            var retObj = new List<Note>();
+            // we make a copy of the notes parameter so we return a new object without modifying the parameter
+            var notesCopy= new List<Note>();
+            notes.ForEach(n => notesCopy.Add(n));
+            
             // The variable newVoice is used to generate the numbers of the reordered voices
             byte newVoice = 0;
-            var retObj = new List<Note>();
             // first split the notes by instrument
-            var noteInstrument = notes.Where(m => m.IsPercussion == false).GroupBy(n => n.Instrument).OrderBy(x => x);
+            var noteInstrument = notesCopy.Where(m => m.IsPercussion == false).GroupBy(n => n.Instrument).OrderBy(x => x);
             // now loop by instrument
             foreach (var noteInstGroup in noteInstrument)
             {
                 // get notes of instrument
-                var instrNotes = notes.Where(n => n.Instrument == noteInstGroup.Key);
+                var instrNotes = notesCopy.Where(n => n.Instrument == noteInstGroup.Key);
                 // get the order of this instrument voices by pitch
                 var orderedInstrVoices = OrderInstrumentVoicesByPitch(instrNotes);
                 // loop on the instrument voices
                 foreach (var voice in orderedInstrVoices)
                 {
                     // add to the return object the notes of this voice, assigning a new voice number
-                    foreach (var n in notes.Where(m => m.Voice == voice))
+                    foreach (var n in notesCopy.Where(m => m.Voice == voice))
                     {
                         var m = n.Clone();
                         m.Voice = newVoice;
@@ -393,13 +407,13 @@ namespace DeafComposer.Midi
                 }
             }
             // now add the percusion notes
-            foreach(var n in notes.Where(n => n.IsPercussion == true))
+            foreach(var n in notesCopy.Where(n => n.IsPercussion == true))
             {
                 var m = n.Clone();
                 m.Voice = newVoice;
                 retObj.Add(m);
             }
-            return retObj;
+            return retObj.OrderBy(n=>n.StartSinceBeginningOfSongInTicks).ToList();
         }
         // Returns the voice numbers ordered by the average pitch of their notes, higher averages first
         private static IEnumerable<byte> OrderInstrumentVoicesByPitch(IEnumerable<Note> notes)
@@ -477,7 +491,7 @@ namespace DeafComposer.Midi
                     retObj.Add(n);
                 }
             }
-            return retObj;
+            return retObj.OrderBy(n=>n.StartSinceBeginningOfSongInTicks).ToList();
         }
         /// <summary>
         /// Separates a list of notes in diferent lists, one for each voice (that is the key of the dictionary)
@@ -515,6 +529,25 @@ namespace DeafComposer.Midi
                     var chordNotes = notes.Where(m => AreNotesExactlySimultaneous(m, n) && m.TempId != n.TempId).ToList();
                     chordNotes.ForEach(x => retObj.Add(x));
                 }
+            }
+            // Now correct the timings, so there are no small overlapping of consecutive notes or
+            // very short rests between consecutive notes
+            retObj = retObj.OrderBy(n => n.StartSinceBeginningOfSongInTicks).ToList();
+            for (var i = 0; i < retObj.Count - 1; i++)
+            {
+                var n1 = retObj[i];
+                var n2 = retObj[i + 1];
+                // check overlappings
+                if (GetIntersectionOfNotesInTicks(n1, n2) > 0)
+                {
+                    n1.EndSinceBeginningOfSongInTicks = n2.StartSinceBeginningOfSongInTicks;
+                    continue;
+                }
+                // check short rests between notes
+                var separation = n2.StartSinceBeginningOfSongInTicks - n1.EndSinceBeginningOfSongInTicks;
+                var shorterNote = n1.DurationInTicks < n2.DurationInTicks ? n1 : n2;
+                if (separation * 3 < shorterNote.DurationInTicks)
+                    n1.EndSinceBeginningOfSongInTicks = n2.StartSinceBeginningOfSongInTicks;
             }
             return retObj;
         }

@@ -105,8 +105,6 @@ namespace DeafComposer.Api.Controllers
 
                 var simplificationZero = MidiUtilities.GetSimplificationZeroOfSong(midiBase64encoded);
                 song.Bars = MidiUtilities.GetBarsOfSong(midiBase64encoded, simplificationZero);
-                simplificationZero.Notes = MidiUtilities.QuantizeNotes(simplificationZero, song.Bars)
-                    .ToList();
                 song.TempoChanges = MidiUtilities.GetTempoChanges(midiBase64encoded);
                 song.SongStats.NumberBars = song.Bars.Count();
                 song = await Repository.AddSongAsync(song);

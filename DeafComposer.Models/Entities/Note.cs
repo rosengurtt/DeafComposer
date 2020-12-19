@@ -17,7 +17,8 @@ namespace DeafComposer.Models.Entities
         public long Id { get; set; }
 
         [NotMapped]
-        public Guid TempId { get; set; }
+        [NonSerialized()]
+        public Guid TempId; 
 
         public byte Pitch { get; set; }
         public byte Volume { get; set; }
@@ -50,6 +51,7 @@ namespace DeafComposer.Models.Entities
             return new Note
             {
                 Id = this.Id,
+                TempId = this.TempId,
                 EndSinceBeginningOfSongInTicks = this.EndSinceBeginningOfSongInTicks,
                 StartSinceBeginningOfSongInTicks = this.StartSinceBeginningOfSongInTicks,
                 Pitch = this.Pitch,
