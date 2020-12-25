@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DeafComposer.Models.Helplers;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
@@ -32,7 +33,7 @@ namespace DeafComposer.Models.Entities
             retObj.Artifact = this.Artifact.Clone();
             retObj.SongSimplificationId = this.SongSimplificationId;
             retObj.SongSimplification = this.SongSimplification;
-            retObj.Notes = this.Notes.Select(n=>n.Clone()).ToList();
+            retObj.Notes = this.Notes.Clone();
             return retObj;
         }
     }

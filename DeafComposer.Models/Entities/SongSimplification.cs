@@ -42,7 +42,7 @@ namespace DeafComposer.Models.Entities
             foreach (var n in Notes)
             {
                 if (n.Instrument == instr)
-                    yield return n.Clone();
+                    yield return (Note)n.Clone();
             }
         }
     }

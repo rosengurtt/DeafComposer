@@ -8,7 +8,7 @@ namespace DeafComposer.Models.Entities
     /// <summary>
     /// Represents a music note played at some point in a song
     /// </summary>
-    public class Note
+    public class Note:ICloneable
     {
         public Note()
         {
@@ -46,7 +46,7 @@ namespace DeafComposer.Models.Entities
             }
         }
 
-        public Note Clone()
+        public object Clone()
         {
             return new Note
             {

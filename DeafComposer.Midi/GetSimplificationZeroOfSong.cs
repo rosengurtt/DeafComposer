@@ -3,6 +3,7 @@ using Melanchall.DryWetMidi.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DeafComposer.Models.Helplers;
 
 namespace DeafComposer.Midi
 {
@@ -88,8 +89,8 @@ namespace DeafComposer.Midi
             }
             notesObj = notesObj.OrderBy(x => x.StartSinceBeginningOfSongInTicks).ToList();
             notesObj = QuantizeNotes(notesObj);
-            notesObj = RemoveDuplicateNotes(notesObj);
             notesObj = CorrectNotesTimings(notesObj);
+            notesObj = RemoveDuplicateNotes(notesObj);
 
             // Split voices that have more than one melody playing at the same time
             notesObj = SplitPolyphonicVoiceInMonophonicVoices(notesObj);
@@ -152,9 +153,7 @@ namespace DeafComposer.Midi
         private static List<Note> RemoveDuplicateNotes(List<Note> notes)
         {
             // We first copy all the notes to retObj, we will then remove and alter notes in rettObj, but the original notes are left unchanged
-            var retObj = new List<Note>();
-            notes.ForEach(n => retObj.Add(n.Clone()));
-            retObj = retObj.OrderBy(x => x.StartSinceBeginningOfSongInTicks).ToList();
+            var retObj = notes.Clone();
             // If 2 notes with the same pitch and the same instrument start at the same time, we remove the 
             // one with the lower volume, or if the volume is more or less the same, the shortest one
             var notesToRemove = new List<Note>();
@@ -211,15 +210,19 @@ namespace DeafComposer.Midi
         /// that they start at short different times may be on purpose like when we have an embelishment
         /// We try to find the notes that are meant to start together but are not, and make them start exactly at the
         /// same time. We select the time so it matches a suitable subdivision of the beat
+        /// 
+        /// When we have consecutive notes in a voice, where each one ends approximately when the next starts, but
+        /// one of the notes is quite larger or shorter we can assume it is a mistake. If it is much, much larger, like
+        /// a half, when the other notes are sixteens we assume it is on purpose. But if is an eight or a quarter and
+        /// the others are sixteens, we assume is a mistake and we fix it
         /// </summary>
         /// <param name="notes"></param>
         /// <returns></returns>
         private static List<Note> CorrectNotesTimings(List<Note> notes)
-        {  
+        {
             // We first copy all the notes to retObj, we will then remove and alter notes in rettObj, but the original notes are left unchanged
-            var retObj = new List<Note>();
-            notes.ForEach(n => retObj.Add(n.Clone()));
-            retObj = retObj.OrderBy(x => x.StartSinceBeginningOfSongInTicks).ToList();
+            var retObj = notes.Clone();
+            // In this loop we do the first type of correction when 2 notes start and stop aprox at the same time
             for (var i = 0; i < retObj.Count - 1; i++)
             {
                 for (var j = i + 1; j < retObj.Count; j++)
@@ -244,8 +247,134 @@ namespace DeafComposer.Midi
                     }
                 }
             }
+
+            // In this loop we make the second type of correction, when a note has a wrong duration
+            var voices = GetVoicesOfNotes(retObj);
+            foreach (var v in voices)
+            {
+                var notesOfVoice = notes.Where(x => x.Voice == v).OrderBy(y => y.StartSinceBeginningOfSongInTicks).ToList();
+                List<Note> alreadyEvaluated = new List<Note>();
+                while (true)
+                {
+                    var nextGroupOf4ConsecutiveNotes = GetNextGroupOf4ConsecutiveWithNoOverlap(notesOfVoice, alreadyEvaluated);
+                    if (nextGroupOf4ConsecutiveNotes.Count == 0) break;
+                    var averageDuration = nextGroupOf4ConsecutiveNotes.Average(n => n.DurationInTicks);
+                    var averagePitch = nextGroupOf4ConsecutiveNotes.Average(n => n.Pitch);
+                    for (var s = 0; s < 4; s++)
+                    {
+                        var startPoint = nextGroupOf4ConsecutiveNotes[s].StartSinceBeginningOfSongInTicks;
+                        var tempIdsOfSequence = nextGroupOf4ConsecutiveNotes.Select(x => x.TempId).ToList();
+                        var candidatesToFix = notesOfVoice
+                            .Where(x => x.StartSinceBeginningOfSongInTicks > startPoint - 2 * averageDuration &&
+                                        x.StartSinceBeginningOfSongInTicks < startPoint &&
+                                        Math.Abs(x.Pitch - averagePitch) < 12 &&
+                                        !tempIdsOfSequence.Contains(x.TempId)).ToList();
+                        foreach (var candidate in candidatesToFix)
+                        {
+                            // we check that it starts aprox in the right place and with a duration that is not too far from the expected duration
+                            if ((Math.Abs(candidate.StartSinceBeginningOfSongInTicks + averageDuration - startPoint) < Math.Min(10, averageDuration / 4))
+                                && candidate.DurationInTicks > averageDuration / 2 && candidate.DurationInTicks < averageDuration * 3)
+                            {
+                                //fix duration of corresponding note in retObj                           
+                                retObj.Where(n => n.TempId == candidate.TempId).FirstOrDefault().EndSinceBeginningOfSongInTicks = startPoint;
+                            }
+                        }
+                    }
+                    alreadyEvaluated.Add( nextGroupOf4ConsecutiveNotes[0]);
+                }
+            }
+
             return retObj;
         }
+        // Checks if a group of consecutive notes are played in succession, where each starts where the previous ended
+        // It allows for small imperfections
+        private static bool NotesAreMeantConsecutiveWithNoInterlap(List<Note> notes)
+        {
+            var notesAvgDuration = notes.Average(x => x.DurationInTicks);
+            long totalInterlap = 0;
+            for (var i = 0; i < notes.Count - 1; i++)
+            {
+                totalInterlap += Math.Abs(notes[i].EndSinceBeginningOfSongInTicks - notes[i + 1].StartSinceBeginningOfSongInTicks);
+            }
+            var averageInterlap = totalInterlap / (double)notes.Count;
+            if (notesAvgDuration / averageInterlap > 3) return true;
+            return false;
+        }
+
+        private static List<Note> GetNextGroupOf4ConsecutiveWithNoOverlap(List<Note> notes, List<Note> alreadyEvaluated)
+        {
+            var retObj = new List<Note>();
+            for (var i = 0; i < notes.Count - 4; i++)
+            {
+                // Find the first note we have to evaluate
+                if (alreadyEvaluated.Count > 0 &&
+                    notes[i].StartSinceBeginningOfSongInTicks < alreadyEvaluated.Max(x => x.StartSinceBeginningOfSongInTicks))
+                    continue;
+                if (alreadyEvaluated.Select(x => x.TempId).Contains(notes[i].TempId)) 
+                    continue;
+
+                var firstNote = notes[i];
+                var averageDuration = firstNote.DurationInTicks;
+                var iteration1Limit = Math.Min(firstNote.StartSinceBeginningOfSongInTicks + 4 * averageDuration, notes.Count - 3);
+                for (var j = i + 1; notes[j].StartSinceBeginningOfSongInTicks < iteration1Limit; j++)
+                {
+                    averageDuration = (firstNote.DurationInTicks + notes[j].DurationInTicks) / 2;
+                    var startDifferenceBetween1and2 = notes[j].StartSinceBeginningOfSongInTicks - firstNote.StartSinceBeginningOfSongInTicks;
+                    var note2StartsWhenNote1Ends = (Math.Abs(startDifferenceBetween1and2 - notes[j].DurationInTicks) * 3 < averageDuration) ? true : false;
+                    var overlappingBetween2FirstNotes = Math.Abs(notes[j].StartSinceBeginningOfSongInTicks - firstNote.EndSinceBeginningOfSongInTicks);
+                    var durationDifference = Math.Abs(firstNote.DurationInTicks - notes[j].DurationInTicks);
+                    var pitchDifferenceBetween1and2 = Math.Abs(firstNote.Pitch - notes[j].Pitch);
+                    if (note2StartsWhenNote1Ends &&
+                        overlappingBetween2FirstNotes * 4 < averageDuration &&
+                        durationDifference * 3 < averageDuration &&
+                        pitchDifferenceBetween1and2 < 12)
+                    {
+                        var secondNote = notes[j];
+                        var iteration2Limit = Math.Min(secondNote.StartSinceBeginningOfSongInTicks + 4 * averageDuration, notes.Count - 2);
+                        for (var k = j + 1; notes[k].StartSinceBeginningOfSongInTicks < iteration2Limit; k++)
+                        {
+                            var durationDifferenceWith2previous = Math.Abs(averageDuration - notes[k].DurationInTicks);
+                            averageDuration = (firstNote.DurationInTicks + secondNote.DurationInTicks + notes[k].DurationInTicks) / 3;
+                            var startDifferenceBetween2and3 = notes[k].StartSinceBeginningOfSongInTicks - secondNote.StartSinceBeginningOfSongInTicks;
+                            var note3StartsWhenNote2Ends = (Math.Abs(startDifferenceBetween2and3 - notes[k].DurationInTicks) * 3 < averageDuration) ? true : false;
+                            var overlappingBetweenNotes2And3 = Math.Abs(notes[k].StartSinceBeginningOfSongInTicks - secondNote.EndSinceBeginningOfSongInTicks);
+                            var pitchDifferenceBetween3andPrevious = Math.Abs((secondNote.Pitch + firstNote.Pitch) / 2 - notes[k].Pitch);
+                            if (note3StartsWhenNote2Ends &&
+                                overlappingBetweenNotes2And3 < 4 * averageDuration &&
+                                durationDifferenceWith2previous * 3 < averageDuration &&
+                                pitchDifferenceBetween3andPrevious < 12)
+                            {
+                                var thirdNote = notes[k];
+                                var iteration3Limit = Math.Min(thirdNote.StartSinceBeginningOfSongInTicks + 4 * averageDuration, notes.Count);
+                                for (var m = k + 1; notes[m].StartSinceBeginningOfSongInTicks < iteration3Limit; m++)
+                                {
+                                    var durationDifferenceWith3previous = Math.Abs(averageDuration - notes[m].DurationInTicks);
+                                    averageDuration = (firstNote.DurationInTicks + secondNote.DurationInTicks + thirdNote.DurationInTicks + notes[m].DurationInTicks) / 3;
+                                    var startDifferenceBetween3and4 = notes[m].StartSinceBeginningOfSongInTicks - thirdNote.StartSinceBeginningOfSongInTicks;
+                                    var note4StartsWhenNote3Ends = (Math.Abs(startDifferenceBetween3and4 - notes[m].DurationInTicks) * 3 < averageDuration) ? true : false;
+                                    var overlappingBetweenNotes3And4 = Math.Abs(notes[m].StartSinceBeginningOfSongInTicks - thirdNote.EndSinceBeginningOfSongInTicks);
+                                    var pitchDifferenceBetween4andPrevious = Math.Abs((firstNote.Pitch + secondNote.Pitch + thirdNote.Pitch) / 3 - notes[m].Pitch);
+                                    if (note4StartsWhenNote3Ends &&
+                                        overlappingBetweenNotes3And4 < 4 * averageDuration &&
+                                        durationDifferenceWith3previous * 3 < averageDuration &&
+                                        pitchDifferenceBetween4andPrevious < 12)
+                                    {
+                                        retObj.Add(firstNote);
+                                        retObj.Add(secondNote);
+                                        retObj.Add(thirdNote);
+                                        retObj.Add(notes[m]);
+                                        return retObj;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return retObj;
+        }
+
+        
         /// <summary>
         /// When we want to clean the timing of notes, we have to consider the duration of the notes
         /// If 2 quarter notes start with a difference of 2 ticks, they are probably meant to start at the same time
@@ -398,7 +527,7 @@ namespace DeafComposer.Midi
                     // add to the return object the notes of this voice, assigning a new voice number
                     foreach (var n in notesCopy.Where(m => m.Voice == voice))
                     {
-                        var m = n.Clone();
+                        var m = (Note)n.Clone();
                         m.Voice = newVoice;
                         retObj.Add(m);
                     }
@@ -409,7 +538,7 @@ namespace DeafComposer.Midi
             // now add the percusion notes
             foreach(var n in notesCopy.Where(n => n.IsPercussion == true))
             {
-                var m = n.Clone();
+                var m = (Note)n.Clone();
                 m.Voice = newVoice;
                 retObj.Add(m);
             }

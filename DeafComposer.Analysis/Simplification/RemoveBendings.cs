@@ -41,7 +41,7 @@ namespace DeafComposer.Analysis.Simplification
                         if (nextPitchChange == null ||
                             nextPitchChange.TicksSinceBeginningOfSong >= n.EndSinceBeginningOfSongInTicks)
                         {
-                            var clonito = n.Clone();
+                            var clonito = (Note)n.Clone();
                             clonito.PitchBending = null;
                             retObj.Add(clonito);
                             keepLooping = false;
@@ -80,7 +80,7 @@ namespace DeafComposer.Analysis.Simplification
                         // the duration of the original note to finish where the new one starts
                         if (isFirstLoop)
                         {
-                            var clonito = n.Clone();
+                            var clonito = (Note)n.Clone();
                             clonito.EndSinceBeginningOfSongInTicks = addedNote.StartSinceBeginningOfSongInTicks;
                             clonito.PitchBending = null;
                             isFirstLoop = false;

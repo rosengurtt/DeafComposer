@@ -10,7 +10,7 @@ namespace DeafComposer.Midi
         public static List<Note> QuantizeNotes(List<Note> notes)
         {
             var retObj = new List<Note>();
-            foreach (var n in notes) retObj.Add(QuantizeNote(n.Clone()));
+            foreach (var n in notes) retObj.Add(QuantizeNote((Note)n.Clone()));
             return retObj.OrderBy(x=>x.StartSinceBeginningOfSongInTicks).ToList();
         }
 

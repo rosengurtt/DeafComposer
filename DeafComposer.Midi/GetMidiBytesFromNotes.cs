@@ -79,7 +79,7 @@ namespace DeafComposer.Midi
         }
         private static Note ResetTimeOfNote(Note n, long noTicks)
         {
-            var notita = n.Clone();
+            var notita = (Note)n.Clone();
             notita.StartSinceBeginningOfSongInTicks -= noTicks;
             return notita;
         }
