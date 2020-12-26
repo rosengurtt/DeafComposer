@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace DeafComposer.Models.Helplers
+namespace DeafComposer.Models.Helpers
 {
     public static class Extensions
     {

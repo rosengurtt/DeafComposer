@@ -1,4 +1,4 @@
-﻿using DeafComposer.Models.Helplers;
+﻿using DeafComposer.Models.Helpers;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;

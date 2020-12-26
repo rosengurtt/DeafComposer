@@ -3,7 +3,7 @@ using Melanchall.DryWetMidi.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using DeafComposer.Models.Helplers;
+using DeafComposer.Models.Helpers;
 
 namespace DeafComposer.Midi
 {
@@ -11,112 +11,59 @@ namespace DeafComposer.Midi
     {
         public static SongSimplification GetSimplificationZeroOfSong(string base64encodedMidiFile)
         {
-            var notesObj = new List<Note>();
-            var midiFile = MidiFile.Read(base64encodedMidiFile);
-            long songDuration = GetSongDurationInTicks(base64encodedMidiFile);
-            var isSustainPedalOn = false;
-            var notesOnBecauseOfSustainPedal = new List<Note>();
-            var instrumentOfChannel = new byte[16];
 
-            short chunkNo = -1;
-            foreach (TrackChunk chunk in midiFile.Chunks)
-            {
-                chunkNo++;
-                var currentNotes = new List<Note>();
-                long currentTick = 0;
+            var notesObj0 = GetNotesOfMidiFile(base64encodedMidiFile);
+            var midiEncoded1 = GetMidiBytesFromNotes(notesObj0);
+            var dif0 = CompareMidiFiles(base64encodedMidiFile, midiEncoded1);
+            var notesEvolution = GetNotesEvolution(notesObj0);
 
-                foreach (MidiEvent eventito in chunk.Events)
-                {
-                    currentTick += eventito.DeltaTime;
+            var notesObj1 = QuantizeNotes(notesObj0);
+            var dif1 = CompareListOfNotes(notesObj0, notesObj1);
+            notesEvolution = GetNotesEvolution(notesObj1, notesEvolution);
 
-                    if (eventito is ProgramChangeEvent)
-                    {
-                        var pg = eventito as ProgramChangeEvent;
-                        instrumentOfChannel[pg.Channel] = (byte)pg.ProgramNumber.valor;
-                        continue;
-                    }
 
-                    if (IsSustainPedalEventOn(eventito))
-                    {
-                        isSustainPedalOn = true;
-                        continue;
-                    }
+            var notesObj2 = CorrectNotesTimings(notesObj1);
+            var dif2 = CompareListOfNotes(notesObj1, notesObj2);
+            notesEvolution = GetNotesEvolution(notesObj2, notesEvolution);
 
-                    if (IsSustainPedalEventOff(eventito))
-                    {
-                        isSustainPedalOn = false;
-                        foreach (var n in notesOnBecauseOfSustainPedal)
-                        {
-                            ProcessNoteOff(n.Pitch, currentNotes, notesObj, currentTick,
-                                n.Instrument, (byte)chunkNo);
-                        }
-                        continue;
-                    }
-                    if (eventito is NoteOnEvent)
-                    {
-                        NoteOnEvent noteOnEvent = eventito as NoteOnEvent;
-                        if (noteOnEvent.Velocity > 0 || isSustainPedalOn == false)
-                        {
-                            ProcessNoteOn(noteOnEvent.NoteNumber, noteOnEvent.Velocity,
-                                currentNotes, notesObj, currentTick,
-                                instrumentOfChannel[noteOnEvent.Channel],
-                                IsPercussionEvent(eventito), (byte)chunkNo);
-                        }
-                        continue;
-                    }
-                    if (eventito is NoteOffEvent && isSustainPedalOn == false)
-                    {
-                        NoteOffEvent noteOffEvent = eventito as NoteOffEvent;
-                        ProcessNoteOff(noteOffEvent.NoteNumber, currentNotes, notesObj, currentTick,
-                            instrumentOfChannel[noteOffEvent.Channel], (byte)chunkNo);
-                        continue;
-                    }
-                    if (eventito is PitchBendEvent)
-                    {
-                        PitchBendEvent bendito = eventito as PitchBendEvent;
-                        foreach (var notita in currentNotes)
-                        {
-                            notita.PitchBending.Add(new PitchBendItem
-                            {
-                                Note = notita,
-                                Pitch = bendito.PitchValue,
-                                TicksSinceBeginningOfSong = currentTick
-                            });
-                        }
-                        continue;
-                    }
-                }
-            }
-            notesObj = notesObj.OrderBy(x => x.StartSinceBeginningOfSongInTicks).ToList();
-            notesObj = QuantizeNotes(notesObj);
-            notesObj = CorrectNotesTimings(notesObj);
-            notesObj = RemoveDuplicateNotes(notesObj);
+
+            var notesObj3 = RemoveDuplicationOfNotes(notesObj2);
+            var dif3 = CompareListOfNotes(notesObj2, notesObj3);
+            notesEvolution = GetNotesEvolution(notesObj3, notesEvolution);
+
 
             // Split voices that have more than one melody playing at the same time
-            notesObj = SplitPolyphonicVoiceInMonophonicVoices(notesObj);
+            var notesObj4 = SplitPolyphonicVoiceInMonophonicVoices(notesObj3);
+            var dif4 = CompareListOfNotes(notesObj3, notesObj4);
+            notesEvolution = GetNotesEvolution(notesObj4, notesEvolution);
 
             // Reorder voices so when we have for ex the left and right hand of a piano in 2 voices, the right hand comes first
-            notesObj = ReorderVoices(notesObj);
+            var notesObj5 = ReorderVoices(notesObj4);
+            var dif5 = CompareListOfNotes(notesObj4, notesObj5);
+            notesEvolution = GetNotesEvolution(notesObj5, notesEvolution);
 
-            if (!AreVoicesMonophonic(notesObj))
+
+            if (!AreVoicesMonophonic(notesObj5))
             {
-                var kiki = GetProblematicNotes(notesObj);
+                var kiki = GetProblematicNotes1(notesObj5);
             }
             var retObj = new SongSimplification()
             {
-                Notes = notesObj,
+                Notes = notesObj5,
                 SimplificationVersion = 0,
-                NumberOfVoices = chunkNo
+                NumberOfVoices = GetVoicesOfNotes(notesObj5).Count()
             };
             return retObj;
         }
+
+        
         // Used to check that we have splitted the notes in different voices correctly
         // After the split, we shouldn't have simultaneous notes that are not exactly simultaneous
         // When 2 or more notes start and end together, we consider them a chord and it is OK to have
         // them in a monophonic voice. But otherwise, if they play together for a while but not all
         // the time, then they are problematic and they shouldn't be there, something went wrong
         // when we did the split
-        private static List<List<Note>> GetProblematicNotes(List<Note> notes, int tolerance = 0, bool notesOfSamePitch = false)
+        private static List<List<Note>> GetProblematicNotes1(List<Note> notes, int tolerance = 0, bool notesOfSamePitch = false)
         {
             var retObj = new List<List<Note>>();
             var voices = GetVoicesOfNotes(notes);
@@ -140,6 +87,19 @@ namespace DeafComposer.Midi
             }
             return retObj;
         }
+        private static List<NoteEvolution> GetNotesOfDurationZero(List<NoteEvolution> notesEv)
+        {
+            var retObj = new List<NoteEvolution>();
+            foreach (var ne in notesEv)
+            {
+                for(var i = 0; i < ne.start.Count; i++)
+                {
+                    if (ne.start[i] == ne.end[i] && !retObj.Contains(ne)) retObj.Add(ne);
+                }
+            }
+            return retObj;
+        }
+
 
 
         /// <summary>
@@ -150,7 +110,7 @@ namespace DeafComposer.Midi
         /// </summary>
         /// <param name="notes"></param>
         /// <returns></returns>
-        private static List<Note> RemoveDuplicateNotes(List<Note> notes)
+        private static List<Note> RemoveDuplicationOfNotes(List<Note> notes)
         {
             // We first copy all the notes to retObj, we will then remove and alter notes in rettObj, but the original notes are left unchanged
             var retObj = notes.Clone();
@@ -506,9 +466,7 @@ namespace DeafComposer.Midi
         private static List<Note> ReorderVoices(List<Note> notes)
         {
             var retObj = new List<Note>();
-            // we make a copy of the notes parameter so we return a new object without modifying the parameter
-            var notesCopy= new List<Note>();
-            notes.ForEach(n => notesCopy.Add(n));
+            var notesCopy= notes.Clone();
             
             // The variable newVoice is used to generate the numbers of the reordered voices
             byte newVoice = 0;
@@ -590,7 +548,7 @@ namespace DeafComposer.Midi
         {
             var retObj = new List<Note>();
             // in voicesNotes we have the original notes separated by voice
-            var voicesNotes = GetNotesAsDictionary(notes);
+            var voicesNotes = GetNotesAsDictionary(notes.Clone());
             // we will build this new dictionary that possibly will have more voices, but the same total of notes
             var newVoicesNotes = new Dictionary<byte, List<Note>>();
             byte voice = 0;
@@ -605,7 +563,7 @@ namespace DeafComposer.Midi
                     upperVoice = GetUpperVoice(remainingNotes);
                     if (!AreVoicesMonophonic(upperVoice))
                     {
-                        var kiki = GetProblematicNotes(upperVoice);
+                        var kiki = GetProblematicNotes1(upperVoice);
                     }
                     newVoicesNotes[voice++] = upperVoice;
                     upperVoice.ForEach(x => remainingNotes.Remove(x));
@@ -646,6 +604,9 @@ namespace DeafComposer.Midi
             var retObj = new List<Note>();
             foreach (var n in notes)
             {
+                // Check if we have already added this note
+                if (retObj.Where(x => x.TempId == n.TempId).Count() > 0) continue;
+
                 var simulNotes = notes.Where(m =>
                 m.TempId != n.TempId &&
                 GetIntersectionOfNotesInTicks(m, n) > 0 &&
@@ -654,9 +615,15 @@ namespace DeafComposer.Midi
                 if (simulNotes.Where(m => m.Pitch > n.Pitch).ToList().Count == 0)
                 {
                     retObj.Add(n);
+
                     // add also notes that start and end both at the same time
-                    var chordNotes = notes.Where(m => AreNotesExactlySimultaneous(m, n) && m.TempId != n.TempId).ToList();
-                    chordNotes.ForEach(x => retObj.Add(x));
+                    var chordNotes = notes.Where(m => AreNotesExactlySimultaneous(m, n)).ToList();
+                    foreach (var chordNote in chordNotes)
+                    {
+                        // If it was not already added to retObj, add it
+                        if (retObj.Where(x => x.TempId == chordNote.TempId).Count() == 0)
+                            retObj.Add(chordNote);
+                    }
                 }
             }
             // Now correct the timings, so there are no small overlapping of consecutive notes or
@@ -666,8 +633,10 @@ namespace DeafComposer.Midi
             {
                 var n1 = retObj[i];
                 var n2 = retObj[i + 1];
+                if (n2.StartSinceBeginningOfSongInTicks == n1.StartSinceBeginningOfSongInTicks) continue;
+                var intersection = GetIntersectionOfNotesInTicks(n1, n2);
                 // check overlappings
-                if (GetIntersectionOfNotesInTicks(n1, n2) > 0)
+                if (intersection > 0 && intersection * 8 < (n1.DurationInTicks + n2.DurationInTicks))
                 {
                     n1.EndSinceBeginningOfSongInTicks = n2.StartSinceBeginningOfSongInTicks;
                     continue;
@@ -675,10 +644,62 @@ namespace DeafComposer.Midi
                 // check short rests between notes
                 var separation = n2.StartSinceBeginningOfSongInTicks - n1.EndSinceBeginningOfSongInTicks;
                 var shorterNote = n1.DurationInTicks < n2.DurationInTicks ? n1 : n2;
-                if (separation * 3 < shorterNote.DurationInTicks)
-                    n1.EndSinceBeginningOfSongInTicks = n2.StartSinceBeginningOfSongInTicks;
+                if (separation > 0 && separation * 3 < shorterNote.DurationInTicks)
+                {
+                    // There may be notes that are exactly simultaneous with the first one, we must change them all
+                    // so they stay exactly simultaneous
+                    var notesToChange = retObj.Where(x => 
+                        x.StartSinceBeginningOfSongInTicks == n1.StartSinceBeginningOfSongInTicks &&
+                        x.EndSinceBeginningOfSongInTicks == n1.EndSinceBeginningOfSongInTicks)
+                        .ToList();
+                    notesToChange.ForEach(x => x.EndSinceBeginningOfSongInTicks = n2.StartSinceBeginningOfSongInTicks);
+                }
             }
+            RemoveNotesThatAreTooLowForThisVoice(retObj, notes);
             return retObj;
+        }
+            
+        // When we extract the upper voice, we select at each tick the highest note of all the ones that are playing
+        // at that time. But it could be that the upper voice is silent and the highest note playing belongs to another voice
+        // In that case we "return" that note to the pool of notes 
+        // We have to do this at the end and not while we are extracting the upper voice, because we need the average pitch
+        // of the upper voice and the average pitch of the rest of the notes to decide if a note belongs by its pitch to the
+        // upper voice or not
+        // The function modifies the parameters sent to it and doesn't return a value. It basically removes some notes from
+        // the upper voice and puts them in the pool of notes
+        private  static void RemoveNotesThatAreTooLowForThisVoice(List<Note> upperVoice, List<Note> poolOfNotes)
+        {
+            var restOfNotes = new List<Note>();
+            foreach (var n in poolOfNotes)
+                if (upperVoice.Where(x => x.TempId == n.TempId).Count() == 0) restOfNotes.Add(n);
+
+            if (restOfNotes.Count == 0) return;
+
+            var notesToRemove = new List<Note>();
+            var tolerance = 7;
+            foreach (var n in upperVoice)
+            {
+                var upperVoiceNeighbors = upperVoice
+                    .Where(y => y.StartSinceBeginningOfSongInTicks > n.StartSinceBeginningOfSongInTicks - 300 &&
+                    y.StartSinceBeginningOfSongInTicks < n.StartSinceBeginningOfSongInTicks + 300).ToList();
+               
+
+
+                var restOfNotesNeighboors = restOfNotes
+                    .Where(y => y.StartSinceBeginningOfSongInTicks > n.StartSinceBeginningOfSongInTicks - 300 &&
+                    y.StartSinceBeginningOfSongInTicks < n.StartSinceBeginningOfSongInTicks + 300).ToList();
+
+                if (upperVoiceNeighbors.Count>0 && restOfNotesNeighboors.Count > 0)
+                {
+                    var upperVoiceAveragePitch = upperVoiceNeighbors.Average(x => x.Pitch);
+                    var restOfNotesAveragePitch = restOfNotesNeighboors.Average(x => x.Pitch);
+                    var difWithUpperVoiceAverage = Math.Abs(n.Pitch - upperVoiceAveragePitch);
+                    var difWithRestOfNotes = Math.Abs(n.Pitch - restOfNotesAveragePitch);
+                    if (difWithUpperVoiceAverage - tolerance > difWithRestOfNotes)
+                        notesToRemove.Add(n);
+                }
+            }
+            notesToRemove.ForEach(n => upperVoice.Remove(n));
         }
 
         private static bool IsSustainPedalEventOn(MidiEvent eventito)

@@ -11,6 +11,12 @@ namespace DeafComposer.Midi
 {
     public static partial class MidiUtilities
     {
+        /// <summary>
+        /// Returns a base64 encoded string
+        /// </summary>
+        /// <param name="notes"></param>
+        /// <param name="tempoChanges"></param>
+        /// <returns></returns>
         public static string GetMidiBytesFromNotes(List<Note> notes, List<TempoChange> tempoChanges = null)
         {
             var standardTicksPerQuarterNote = 96;
@@ -85,6 +91,7 @@ namespace DeafComposer.Midi
         }
         private static TrackChunk AddSetTempoEvents(TrackChunk chunkito, List<TempoChange> tc)
         {
+            if (tc == null) return chunkito;
             foreach (var t in tc)
             {
                 var setTempoEvent = new SetTempoEvent()
