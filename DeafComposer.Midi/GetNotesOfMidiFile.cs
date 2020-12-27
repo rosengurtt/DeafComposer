@@ -91,5 +91,67 @@ namespace DeafComposer.Midi
   
             return notesObj;
         }
+
+        private static bool IsSustainPedalEventOn(MidiEvent eventito)
+        {
+            if (!(eventito is ControlChangeEvent)) return false;
+            ControlChangeEvent eve = eventito as ControlChangeEvent;
+            if (eve.ControlNumber == 64 && eve.ControlValue > 63) return true;
+            return false;
+        }
+        private static bool IsSustainPedalEventOff(MidiEvent eventito)
+        {
+            if (!(eventito is ControlChangeEvent)) return false;
+            ControlChangeEvent eve = eventito as ControlChangeEvent;
+            if (eve.ControlNumber == 64 && eve.ControlValue < 64) return true;
+            return false;
+        }
+
+
+        private static void ProcessNoteOn(byte pitch, byte volume, List<Note> currentNotes,
+                List<Note> retObj, long currentTick, byte instrument,
+                bool isPercussion, byte voice)
+        {
+
+            if (volume > 0)
+            {
+                var notita = new Note
+                {
+                    TempId = Guid.NewGuid(),
+                    Instrument = instrument,
+                    Pitch = pitch,
+                    StartSinceBeginningOfSongInTicks = currentTick,
+                    Volume = volume,
+                    IsPercussion = isPercussion,
+                    Voice = voice
+                };
+                currentNotes.Add(notita);
+            }
+            else
+            {
+                var notota = currentNotes.Where(n => n.Pitch == pitch).FirstOrDefault();
+                if (notota != null)
+                {
+                    notota.EndSinceBeginningOfSongInTicks = currentTick;
+                    retObj.Add(notota);
+                    currentNotes.Remove(notota);
+                }
+            }
+        }
+        private static void ProcessNoteOff(byte pitch, List<Note> currentNotes,
+         List<Note> retObj, long currentTick, byte intrument, byte voice)
+        {
+            ProcessNoteOn(pitch, 0, currentNotes, retObj, currentTick, intrument, false, voice);
+        }
+
+        private static bool IsPercussionEvent(MidiEvent eventito)
+        {
+            if (!(eventito is ChannelEvent)) return false;
+            var chEv = eventito as ChannelEvent;
+            if (chEv.Channel == 9)
+                return true;
+            return false;
+        }
+
     }
 }

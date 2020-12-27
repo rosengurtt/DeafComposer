@@ -45,7 +45,7 @@ namespace DeafComposer.Midi
 
             if (!AreVoicesMonophonic(notesObj5))
             {
-                var kiki = GetProblematicNotes1(notesObj5);
+                var kiki = GetProblematicNotes(notesObj5);
             }
             var retObj = new SongSimplification()
             {
@@ -63,7 +63,7 @@ namespace DeafComposer.Midi
         // them in a monophonic voice. But otherwise, if they play together for a while but not all
         // the time, then they are problematic and they shouldn't be there, something went wrong
         // when we did the split
-        private static List<List<Note>> GetProblematicNotes1(List<Note> notes, int tolerance = 0, bool notesOfSamePitch = false)
+        private static List<List<Note>> GetProblematicNotes(List<Note> notes, int tolerance = 0, bool notesOfSamePitch = false)
         {
             var retObj = new List<List<Note>>();
             var voices = GetVoicesOfNotes(notes);
@@ -87,6 +87,7 @@ namespace DeafComposer.Midi
             }
             return retObj;
         }
+      
         private static List<NoteEvolution> GetNotesOfDurationZero(List<NoteEvolution> notesEv)
         {
             var retObj = new List<NoteEvolution>();
@@ -99,7 +100,6 @@ namespace DeafComposer.Midi
             }
             return retObj;
         }
-
 
 
         /// <summary>
@@ -560,11 +560,21 @@ namespace DeafComposer.Midi
                 List<Note> upperVoice;
                 while (remainingNotes.Count > 0)
                 {
-                    upperVoice = GetUpperVoice(remainingNotes);
-                    if (!AreVoicesMonophonic(upperVoice))
+                    // If there are not many notes left, add them to the last voice, don't create a new voice
+                    // notes.Count / voice is the average of notes per voice for this song (we add 1 to avoid division by 0)
+                    if (remainingNotes.Count < notes.Count / (6 * (voice + 1)))
                     {
-                        var kiki = GetProblematicNotes1(upperVoice);
+                        var lastVoice = newVoicesNotes[(byte)(voice - 1)];
+                        var problematicNotes = GetProblematicNotes(lastVoice);
+                        remainingNotes.ForEach(n => lastVoice.Add(n));
+                        RemoveOverlappingsInNotes(lastVoice);
+                        problematicNotes = GetProblematicNotes(lastVoice);
+                        if (problematicNotes.Count > 0)
+                        {
+                        }
+                        break;
                     }
+                    upperVoice = GetUpperVoice(remainingNotes);
                     newVoicesNotes[voice++] = upperVoice;
                     upperVoice.ForEach(x => remainingNotes.Remove(x));
                 }
@@ -580,6 +590,140 @@ namespace DeafComposer.Midi
             }
             return retObj.OrderBy(n=>n.StartSinceBeginningOfSongInTicks).ToList();
         }
+        /// <summary>
+        /// When we split a group of notes in voices so each one of them is monophonic, we have to make a compromise
+        /// We don't want in the same voice notes that play together but don't start and end exactly at the same time
+        /// but we also don't want to end up with voices with very few notes. So, after splitting in a suitable number
+        /// of voices, any remaining notes are added to one of the voices and the durations of the notes are altered
+        /// so they are exactly simultaneous with other notes or they don't overlap at all
+        /// </summary>
+        /// <param name="voiceNotes"></param>
+        /// <param name="notesToAdd"></param>
+        //private static void AddNotesToVoice(List<Note> voiceNotes, List<Note> notesToAdd)
+        //{
+        //    RemoveOverlappingsInNotes(notesToAdd);
+        //    foreach (var n in notesToAdd)
+        //    {
+        //        var simulNotes = voiceNotes.Where(m =>
+        //           m.TempId != n.TempId &&
+        //           GetIntersectionOfNotesInTicks(m, n) > 0 &&
+        //           !AreNotesExactlySimultaneous(m, n))
+        //            .OrderBy(x => x.StartSinceBeginningOfSongInTicks)
+        //           .ToList();
+        //        if (simulNotes.Count == 0) continue;
+        //        // We first make all notes starting at the same time exactly simultaneous
+        //        foreach (var y in simulNotes.Where(x => x.StartSinceBeginningOfSongInTicks == n.StartSinceBeginningOfSongInTicks))
+        //            MakeEndingsSimultaneous(n, y);
+
+        //        if (simulNote != null)
+        //        {
+        //            // We have a problem: there is a note that is aproximately simultaneous. We have to find the best way to fix it
+
+        //            // First find all notes that are exactly simultaneous with the one we found. If we modify one of them
+        //            // we have to modify all of them
+        //            var notesToModify = voiceNotes.Where(x => x.StartSinceBeginningOfSongInTicks == simulNote.StartSinceBeginningOfSongInTicks &&
+        //               x.EndSinceBeginningOfSongInTicks == simulNote.EndSinceBeginningOfSongInTicks).ToList();
+
+        //            // if they start at the same time, change the end time
+        //            if (simulNote.StartSinceBeginningOfSongInTicks == n.StartSinceBeginningOfSongInTicks)
+        //            {
+        //                var bestEnd = GetBestPoint(simulNote.EndSinceBeginningOfSongInTicks, n.EndSinceBeginningOfSongInTicks);
+        //                n.EndSinceBeginningOfSongInTicks = bestEnd;                   
+        //                foreach (var m in notesToModify) m.EndSinceBeginningOfSongInTicks = bestEnd;                            
+        //            }
+        //            else
+        //            {
+        //                // if the start time difference is small change start times and end times
+        //                var difStart = Math.Abs(n.StartSinceBeginningOfSongInTicks - simulNote.StartSinceBeginningOfSongInTicks);
+        //                var averageNoteDuration = (n.DurationInTicks + simulNote.DurationInTicks) / 2;
+        //                if (difStart < Math.Min(24, averageNoteDuration / 4))
+        //                {
+        //                    var bestStart = GetBestPoint(n.StartSinceBeginningOfSongInTicks, simulNote.StartSinceBeginningOfSongInTicks);
+        //                    var bestEnd = GetBestPoint(n.EndSinceBeginningOfSongInTicks, simulNote.EndSinceBeginningOfSongInTicks);
+        //                    n.StartSinceBeginningOfSongInTicks = bestStart;
+        //                    n.EndSinceBeginningOfSongInTicks = bestEnd;
+        //                    // There may be other notes that are exactly simultaneous with simulNote, we have to change them all
+        //                    foreach (var m in notesToModify)
+        //                    {
+        //                        m.StartSinceBeginningOfSongInTicks = bestStart;
+        //                        m.EndSinceBeginningOfSongInTicks = bestEnd;
+        //                    }
+        //                }
+        //                else
+        //                {
+        //                    // if the start time difference is large, shorten the first note
+        //                    if (simulNote.StartSinceBeginningOfSongInTicks < n.StartSinceBeginningOfSongInTicks)
+        //                    {
+        //                        foreach (var m in notesToModify) m.EndSinceBeginningOfSongInTicks = n.StartSinceBeginningOfSongInTicks;
+        //                    }
+        //                    else
+        //                        n.EndSinceBeginningOfSongInTicks = simulNote.StartSinceBeginningOfSongInTicks;
+        //                }
+        //            }
+        //        }
+        //        voiceNotes.Add(n);
+        //    }
+        //}
+      
+        
+        /// <summary>
+        /// This is a bit drastic, it is used when we have a few notes to assign to a voice and we don't want to create
+        /// a new voice to hold them. We remove all overlappings by making the notes exactly simultaneous or shortening
+        /// some of them. We don't change start times
+        /// </summary>
+        /// <param name="notes"></param>
+        private static void RemoveOverlappingsInNotes(List<Note> notes)
+        {
+            foreach (var n in notes.OrderBy(x => x.StartSinceBeginningOfSongInTicks))
+            {
+                var simulNotes = notes.Where(m =>
+                   m.TempId != n.TempId &&
+                   GetIntersectionOfNotesInTicks(m, n) > 0 &&
+                   !AreNotesExactlySimultaneous(m, n))
+                    .OrderBy(x => x.StartSinceBeginningOfSongInTicks)
+                   .ToList();
+                if (simulNotes.Count == 0) continue;
+                // We first make all notes starting at the same time exactly simultaneous
+                foreach (var y in simulNotes.Where(x => x.StartSinceBeginningOfSongInTicks == n.StartSinceBeginningOfSongInTicks))
+                    MakeEndingsSimultaneous(n, y);
+                // we now look for the first note that is not exactly simultaneous that starts later
+                var nextSimul = simulNotes.Where(x => x.StartSinceBeginningOfSongInTicks > n.StartSinceBeginningOfSongInTicks)
+                    .OrderBy(y=>y.StartSinceBeginningOfSongInTicks)
+                    .FirstOrDefault();
+                // If we find such a note, we make all the notes that started together with n to end when that note starts
+                if (nextSimul != null)
+                {
+                    // if the start time difference is small change start times and end times
+                    var difStart = nextSimul.StartSinceBeginningOfSongInTicks - n.StartSinceBeginningOfSongInTicks;
+                    var averageNoteDuration = (n.DurationInTicks + nextSimul.DurationInTicks) / 2;
+                    if (difStart < Math.Min(24, averageNoteDuration / 4))
+                    {
+                        var bestStart = GetBestPoint(n.StartSinceBeginningOfSongInTicks, nextSimul.StartSinceBeginningOfSongInTicks);
+                        var bestEnd = GetBestPoint(n.EndSinceBeginningOfSongInTicks, nextSimul.EndSinceBeginningOfSongInTicks);
+
+                        // There may be other notes that are exactly simultaneous with simulNote or with n, we have to change them all
+                        foreach (var m in simulNotes.Where(x => x.StartSinceBeginningOfSongInTicks == n.StartSinceBeginningOfSongInTicks
+                        || x.StartSinceBeginningOfSongInTicks == nextSimul.StartSinceBeginningOfSongInTicks))
+                        {
+                            m.StartSinceBeginningOfSongInTicks = bestStart;
+                            m.EndSinceBeginningOfSongInTicks = bestEnd;
+                        }
+                    }
+                    else
+                    {
+                        foreach (var m in notes.Where(x => x.StartSinceBeginningOfSongInTicks == n.StartSinceBeginningOfSongInTicks))
+                            m.EndSinceBeginningOfSongInTicks = nextSimul.StartSinceBeginningOfSongInTicks;
+                    }
+                }
+            }
+        }
+        private static void MakeEndingsSimultaneous(Note n, Note m)
+        {
+            var bestEnd = GetBestPoint(n.EndSinceBeginningOfSongInTicks, m.EndSinceBeginningOfSongInTicks);
+            n.EndSinceBeginningOfSongInTicks = bestEnd;
+            m.EndSinceBeginningOfSongInTicks = bestEnd;
+        }
+
         /// <summary>
         /// Separates a list of notes in diferent lists, one for each voice (that is the key of the dictionary)
         /// </summary>
@@ -617,7 +761,7 @@ namespace DeafComposer.Midi
                     retObj.Add(n);
 
                     // add also notes that start and end both at the same time
-                    var chordNotes = notes.Where(m => AreNotesExactlySimultaneous(m, n)).ToList();
+                    var chordNotes = notes.Where(m => m.TempId != n.TempId && AreNotesExactlySimultaneous(m, n)).ToList();
                     foreach (var chordNote in chordNotes)
                     {
                         // If it was not already added to retObj, add it
@@ -656,6 +800,12 @@ namespace DeafComposer.Midi
                 }
             }
             RemoveNotesThatAreTooLowForThisVoice(retObj, notes);
+
+            var sacamela = GetProblematicNotes(retObj);
+            if (sacamela.Count > 0)
+            {
+
+            }
             return retObj;
         }
             
@@ -702,66 +852,26 @@ namespace DeafComposer.Midi
             notesToRemove.ForEach(n => upperVoice.Remove(n));
         }
 
-        private static bool IsSustainPedalEventOn(MidiEvent eventito)
+        /// <summary>
+        /// When we have to change the end of 2 notes, so they are the same, we want some value between the 2
+        /// ends that falls in a "hard tick" For ex. if end1 is 93 and end2 is 97, we select 96
+        /// </summary>
+        /// <param name="point1"></param>
+        /// <param name="point2"></param>
+        /// <returns></returns>
+        private static long GetBestPoint(long point1, long point2)
         {
-            if (!(eventito is ControlChangeEvent)) return false;
-            ControlChangeEvent eve = eventito as ControlChangeEvent;
-            if (eve.ControlNumber == 64 && eve.ControlValue > 63) return true;
-            return false;
-        }
-        private static bool IsSustainPedalEventOff(MidiEvent eventito)
-        {
-            if (!(eventito is ControlChangeEvent)) return false;
-            ControlChangeEvent eve = eventito as ControlChangeEvent;
-            if (eve.ControlNumber == 64 && eve.ControlValue < 64) return true;
-            return false;
-        }
+            int[] subdivisions = { 1, 2, 3, 4, 6, 8, 12, 16, 18, 24, 32, 48 };
 
-
-        private static void ProcessNoteOn(byte pitch, byte volume, List<Note> currentNotes,
-                List<Note> retObj, long currentTick, byte instrument,
-                bool isPercussion, byte voice)
-        {
-
-            if (volume > 0)
+            var first = Math.Min(point1, point2);
+            var second =Math.Max(point1, point2);
+            foreach (int i in subdivisions)
             {
-                var notita = new Note
-                {
-                    TempId = Guid.NewGuid(),
-                    Instrument = instrument,
-                    Pitch = pitch,
-                    StartSinceBeginningOfSongInTicks = currentTick,
-                    Volume = volume,
-                    IsPercussion = isPercussion,
-                    Voice = voice
-                };
-                currentNotes.Add(notita);
+                var distance = 96 / i;
+                if (first / distance < second / distance)
+                    return second - second % distance;
             }
-            else
-            {
-                var notota = currentNotes.Where(n => n.Pitch == pitch).FirstOrDefault();
-                if (notota != null)
-                {
-                    notota.EndSinceBeginningOfSongInTicks = currentTick;
-                    retObj.Add(notota);
-                    currentNotes.Remove(notota);
-                }
-            }
+            return first;
         }
-        private static void ProcessNoteOff(byte pitch, List<Note> currentNotes,
-         List<Note> retObj, long currentTick, byte intrument, byte voice)
-        {
-            ProcessNoteOn(pitch, 0, currentNotes, retObj, currentTick, intrument, false, voice);
-        }
-
-        private static bool IsPercussionEvent(MidiEvent eventito)
-        {
-            if (!(eventito is ChannelEvent)) return false;
-            var chEv = eventito as ChannelEvent;
-            if (chEv.Channel == 9)
-                return true;
-            return false;
-        }
-
     }
 }
