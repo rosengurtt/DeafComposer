@@ -112,6 +112,11 @@ namespace DeafComposer.Api.Controllers
                 simplificationZero = await Repository.AddSongSimplificationAsync(simplificationZero);
                 song.SongSimplifications = new List<SongSimplification>();
                 song.SongSimplifications.Add(simplificationZero);
+
+                var simplification1 = MidiUtilities.GetSimplification1ofSong(song);
+                simplification1=await Repository.AddSongSimplificationAsync(simplification1);
+                song.SongSimplifications.Add(simplification1);
+
                 return song;
             }
             catch (Exception sorete)

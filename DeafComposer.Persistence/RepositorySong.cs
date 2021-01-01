@@ -26,6 +26,17 @@ namespace DeafComposer.Persistence
 
             retObj.Bars = retObj.Bars.OrderBy(x => x.BarNumber).ToList();
             retObj.TempoChanges = retObj.TempoChanges.OrderBy(x => x.TicksSinceBeginningOfSong).ToList();
+
+            retObj.SongSimplifications = new List<SongSimplification>();
+            var i = 0;
+            while (true)
+            {
+                var simpl = await GetSongSimplificationBySongIdAndVersionAsync(songId, i);
+                if (simpl == null) break;
+                retObj.SongSimplifications.Add(simpl);
+                i++;
+            }
+           
             return retObj;
         }
         public async Task<Song> GetSongByNameAndBandAsync(string songName, string bandName)

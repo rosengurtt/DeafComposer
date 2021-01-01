@@ -46,15 +46,17 @@ namespace DeafComposer.Persistence
                                              where ss.SongId == songId && ss.SimplificationVersion == version
                                              select n).ToListAsync();
                 }
-            }
-            songSimpl.Notes = songSimpl.Notes.OrderBy(x => x.StartSinceBeginningOfSongInTicks).ToList();
-            if (mutedTracks != null)
-            {
-                foreach (var i in mutedTracks)
+                songSimpl.Notes = songSimpl.Notes.OrderBy(x => x.StartSinceBeginningOfSongInTicks).ToList();
+                if (mutedTracks != null)
                 {
-                    songSimpl.Notes = songSimpl.Notes.Where(x => x.Voice != i).ToList();
+                    foreach (var i in mutedTracks)
+                    {
+                        songSimpl.Notes = songSimpl.Notes.Where(x => x.Voice != i).ToList();
+                    }
                 }
+
             }
+
             return songSimpl;
         }
 

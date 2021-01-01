@@ -59,9 +59,6 @@ namespace DeafComposer.Controllers
                 return NotFound(new ApiResponse(404));
 
             song.MidiBase64Encoded = null;
-            song.SongSimplifications = new List<SongSimplification>();
-            song.SongSimplifications.Add(
-                await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simplificationVersion));
     
 
             return Ok(new ApiOKResponse(song));

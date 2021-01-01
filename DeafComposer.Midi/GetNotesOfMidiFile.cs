@@ -129,11 +129,18 @@ namespace DeafComposer.Midi
             }
             else
             {
-                var notota = currentNotes.Where(n => n.Pitch == pitch).FirstOrDefault();
+                var notota = currentNotes
+                    .Where(n => n.Pitch == pitch)
+                    .OrderBy(x => x.StartSinceBeginningOfSongInTicks)
+                    .FirstOrDefault();
                 if (notota != null)
                 {
                     notota.EndSinceBeginningOfSongInTicks = currentTick;
-                    retObj.Add(notota);
+
+                    // There are strange cases where the noteon and noteoff happen in the same tick
+                    // we don't want to create a note for those cases
+                    if (notota.DurationInTicks > 0)
+                        retObj.Add(notota);
                     currentNotes.Remove(notota);
                 }
             }

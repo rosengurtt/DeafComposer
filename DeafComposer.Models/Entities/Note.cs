@@ -8,7 +8,7 @@ namespace DeafComposer.Models.Entities
     /// <summary>
     /// Represents a music note played at some point in a song
     /// </summary>
-    public class Note:ICloneable
+    public class Note : ICloneable
     {
         public Note()
         {
@@ -18,7 +18,7 @@ namespace DeafComposer.Models.Entities
 
         [NotMapped]
         [NonSerialized()]
-        public Guid TempId; 
+        public Guid TempId;
 
         public byte Pitch { get; set; }
         public byte Volume { get; set; }
@@ -73,6 +73,9 @@ namespace DeafComposer.Models.Entities
             {
                 Note noty = (Note)n;
                 if (noty.Pitch == Pitch &&
+                    noty.Voice == Voice &&
+                    noty.Volume == Volume &&
+                    noty.IsPercussion == IsPercussion &&
                     noty.StartSinceBeginningOfSongInTicks == StartSinceBeginningOfSongInTicks &&
                     noty.EndSinceBeginningOfSongInTicks == EndSinceBeginningOfSongInTicks &&
                     noty.Instrument == Instrument)
