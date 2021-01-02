@@ -51,29 +51,43 @@ namespace DeafComposer.Midi
             {
 
             }
-
-            // Reorder voices so when we have for ex the left and right hand of a piano in 2 voices, the right hand comes first
-            var notesObj5 = ReorderVoices(notesObj4);
+            var notesObj5 = FixDurationOfLastNotes(notesObj4, song.Bars);
             var dif5 = CompareListOfNotes(notesObj4, notesObj5);
             notesEvolution = GetNotesEvolution(notesObj5, notesEvolution);
-
-
-            SetIdsOfModifiedNotesToZero(notesObj0, notesObj5);
-
-            if (!AreVoicesMonophonic(notesObj5))
+            sorets = GetListOfNotesWithDurationZero(notesObj5);
+            if (sorets.Count > 0)
             {
-                var kiki = GetProblematicNotes(notesObj5);
+
+            }
+
+            // Reorder voices so when we have for ex the left and right hand of a piano in 2 voices, the right hand comes first
+            var notesObj6 = ReorderVoices(notesObj5);
+            var dif6 = CompareListOfNotes(notesObj5, notesObj6);
+            notesEvolution = GetNotesEvolution(notesObj6, notesEvolution);
+
+
+            SetIdsOfModifiedNotesToZero(notesObj0, notesObj6);
+
+            if (!AreVoicesMonophonic(notesObj6))
+            {
+                var kiki = GetProblematicNotes(notesObj6);
             }
             var retObj = new SongSimplification()
             {
-                Notes = notesObj5,
+                Notes = notesObj6,
                 SimplificationVersion = 1,
-                NumberOfVoices = GetVoicesOfNotes(notesObj5).Count(),
+                NumberOfVoices = GetVoicesOfNotes(notesObj6).Count(),
                 SongId=song.Id
             };
-            SetIdsOfModifiedNotesToZero(notesObj0, notesObj5);
             return retObj;
         }
+        /// <summary>
+        /// When we clone notes we keep the same Id, but if we are going to save data to the database, if we have
+        /// 2 different notes with the same Id that is a problem, so we have to set to zero the id of cloned notes
+        /// for EF to create a new record for the modified note
+        /// </summary>
+        /// <param name="originalNotes"></param>
+        /// <param name="currentNotes"></param>
         private static void SetIdsOfModifiedNotesToZero(List<Note> originalNotes, List<Note> currentNotes)
         {
             foreach(var n in originalNotes)
@@ -84,6 +98,27 @@ namespace DeafComposer.Midi
             }
         }
 
+        /// <summary>
+        /// When a song is finishing it is common that the musician slows gradually the pace and plays the final
+        /// note or chord for a length of time that exceeds the bar length. We have to limit the length of the final
+        /// notes to the length of the bar, or the routines that create the musical notation of the song will have
+        /// problems
+        /// </summary>
+        /// <param name="notes"></param>
+        /// <param name="bars"></param>
+        /// <returns></returns>
+        private static List<Note> FixDurationOfLastNotes(List<Note>notes, List<Bar> bars)
+        {
+            var ticksPerQuarter = 96;
+            var lastBar = bars[bars.Count - 1];
+            var startOfLastBar = lastBar.TicksFromBeginningOfSong;
+            var endOfLastBar = startOfLastBar + lastBar.TimeSignature.Numerator * ticksPerQuarter * 4 / lastBar.TimeSignature.Denominator;
+            var retObj = notes.Clone();
+            if (retObj.Where(x => x.StartSinceBeginningOfSongInTicks < startOfLastBar).Any())
+                endOfLastBar = startOfLastBar;
+            retObj.ForEach(x => { if (x.EndSinceBeginningOfSongInTicks > endOfLastBar) x.EndSinceBeginningOfSongInTicks = endOfLastBar; });
+            return retObj;
+        }
         // Many notes can be in different simplifications of a song without change. We don't want to create duplicates
         // so if after creating a simplification a note is the same as in the previous simplification we don't want
         // to create a new record in the database. But if something in the note has changed we have to add a new record
