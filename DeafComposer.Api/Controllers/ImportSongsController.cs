@@ -100,11 +100,19 @@ namespace DeafComposer.Api.Controllers
                 // The following line is  used to get the id of the time signature. If we don't
                 // provide the id when saving the song, it will create a duplicated time signature
                 // in the TimeSignatures table
-                song.SongStats.TimeSignature = await Repository.GetTimeSignatureAsync(song.SongStats.TimeSignature);
+                var timeSig = await Repository.GetTimeSignatureAsync(song.SongStats.TimeSignature);
+                song.SongStats.TimeSignatureId = timeSig.Id;
+                song.SongStats.TimeSignature = timeSig;
 
 
                 var simplificationZero = MidiUtilities.GetSimplificationZeroOfSong(midiBase64encoded);
                 song.Bars = MidiUtilities.GetBarsOfSong(midiBase64encoded, simplificationZero);
+                foreach(var bar in song.Bars)
+                {
+                    var timeSigBar = await Repository.GetTimeSignatureAsync(bar.TimeSignature);
+                    bar.TimeSignatureId = timeSigBar.Id;
+                    bar.TimeSignature = timeSig;
+                }
                 song.TempoChanges = MidiUtilities.GetTempoChanges(midiBase64encoded);
                 song.SongStats.NumberBars = song.Bars.Count();
                 song = await Repository.AddSongAsync(song);

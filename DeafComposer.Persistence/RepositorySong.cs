@@ -103,8 +103,8 @@ namespace DeafComposer.Persistence
         {
             dbContext.Songs.Add(song);
             await dbContext.SaveChangesAsync();
-            dbContext.SongAnalysis.Add(new SongAnalysis { SongId = song.Id, HavePatternsBeenFound = false });
-            await dbContext.SaveChangesAsync();
+           // dbContext.SongAnalysis.Add(new SongAnalysis { SongId = song.Id, HavePatternsBeenFound = false });
+           // await dbContext.SaveChangesAsync();
             return song;
         }
 

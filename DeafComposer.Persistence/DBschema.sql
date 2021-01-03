@@ -250,6 +250,7 @@ CREATE TABLE Bars(
 	BarNumber bigint null,
 	TicksFromBeginningOfSong bigint NULL,
 	TimeSignatureId bigint NULL,
+    KeySignature int NULL,
 	HasTriplets bit NULL,
 	TempoInMicrosecondsPerQuarterNote bigint null,
 	SongId bigint not null
