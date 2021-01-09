@@ -15,6 +15,7 @@ DROP TABLE IF EXISTS  Songs
 DROP TABLE IF EXISTS  Bands
 DROP TABLE IF EXISTS  Styles
 DROP TABLE IF EXISTS  TimeSignatures
+DROP TABLE IF EXISTS  KeySignatures
 
 CREATE TABLE TimeSignatures(
 	Id bigint IDENTITY(1,1) primary key clustered NOT NULL,
@@ -91,6 +92,78 @@ values (21, 12, 4)
 insert into TimeSignatures(Id, Numerator, Denominator)
 values (22, 8, 4)
 SET IDENTITY_INSERT TimeSignatures OFF
+
+
+CREATE TABLE KeySignatures(
+	Id bigint IDENTITY(1,1) primary key clustered NOT NULL,
+	[Key] int NOT NULL,
+	Scale int NOT NULL,
+)
+
+SET IDENTITY_INSERT KeySignatures ON
+
+insert into KeySignatures(Id, [Key], Scale)
+values (1, 0, 0)
+insert into KeySignatures(Id, [Key], Scale)
+values (2, 0, 1)
+insert into KeySignatures(Id, [Key], Scale)
+values (3, 1, 0)
+insert into KeySignatures(Id, [Key], Scale)
+values (4, 1, 1)
+insert into KeySignatures(Id, [Key], Scale)
+values (5, 2, 0)
+insert into KeySignatures(Id, [Key], Scale)
+values (6, 2, 1)
+insert into KeySignatures(Id, [Key], Scale)
+values (7, 3, 0)
+insert into KeySignatures(Id, [Key], Scale)
+values (8, 3, 1)
+insert into KeySignatures(Id, [Key], Scale)
+values (9, 4, 0)
+insert into KeySignatures(Id, [Key], Scale)
+values (10, 4, 1)
+insert into KeySignatures(Id, [Key], Scale)
+values (11, 5, 0)
+insert into KeySignatures(Id, [Key], Scale)
+values (12, 5, 1)
+insert into KeySignatures(Id, [Key], Scale)
+values (13, 6, 0)
+insert into KeySignatures(Id, [Key], Scale)
+values (14, 6, 1)
+insert into KeySignatures(Id, [Key], Scale)
+values (15, 7, 0)
+insert into KeySignatures(Id, [Key], Scale)
+values (16, 7, 1)
+insert into KeySignatures(Id, [Key], Scale)
+values (17, -1, 0)
+insert into KeySignatures(Id, [Key], Scale)
+values (18, -1, 1)
+insert into KeySignatures(Id, [Key], Scale)
+values (19, -2, 0)
+insert into KeySignatures(Id, [Key], Scale)
+values (20, -2, 1)
+insert into KeySignatures(Id, [Key], Scale)
+values (21, -3, 0)
+insert into KeySignatures(Id, [Key], Scale)
+values (22, -3, 1)
+insert into KeySignatures(Id, [Key], Scale)
+values (23, -4, 0)
+insert into KeySignatures(Id, [Key], Scale)
+values (24, -4, 1)
+insert into KeySignatures(Id, [Key], Scale)
+values (25, -5, 0)
+insert into KeySignatures(Id, [Key], Scale)
+values (26, -5, 1)
+insert into KeySignatures(Id, [Key], Scale)
+values (27, -6, 0)
+insert into KeySignatures(Id, [Key], Scale)
+values (28, -6, 1)
+insert into KeySignatures(Id, [Key], Scale)
+values (29, -7, 0)
+insert into KeySignatures(Id, [Key], Scale)
+values (30, -7, 1)
+
+SET IDENTITY_INSERT KeySignatures OFF
 
 CREATE TABLE Styles(
 	Id bigint IDENTITY(1,1) primary key clustered NOT NULL,
@@ -250,13 +323,16 @@ CREATE TABLE Bars(
 	BarNumber bigint null,
 	TicksFromBeginningOfSong bigint NULL,
 	TimeSignatureId bigint NULL,
-    KeySignature int NULL,
+    KeySignatureId bigint NULL,
 	HasTriplets bit NULL,
 	TempoInMicrosecondsPerQuarterNote bigint null,
 	SongId bigint not null
 )
 ALTER TABLE Bars  WITH CHECK ADD  CONSTRAINT FK_Bars_TimeSignatures FOREIGN KEY(TimeSignatureId)
 REFERENCES TimeSignatures (Id)
+
+ALTER TABLE Bars  WITH CHECK ADD  CONSTRAINT FK_Bars_KeySignatures FOREIGN KEY(KeySignatureId)
+REFERENCES KeySignatures (Id)
 
 ALTER TABLE Bars  WITH CHECK ADD  CONSTRAINT FK_Bars_Songs FOREIGN KEY(SongId)
 REFERENCES Songs (Id)

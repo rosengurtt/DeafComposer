@@ -104,7 +104,6 @@ namespace DeafComposer.Api.Controllers
                 song.SongStats.TimeSignatureId = timeSig.Id;
                 song.SongStats.TimeSignature = timeSig;
 
-
                 var simplificationZero = MidiUtilities.GetSimplificationZeroOfSong(midiBase64encoded);
                 song.Bars = MidiUtilities.GetBarsOfSong(midiBase64encoded, simplificationZero);
                 foreach(var bar in song.Bars)
@@ -112,6 +111,10 @@ namespace DeafComposer.Api.Controllers
                     var timeSigBar = await Repository.GetTimeSignatureAsync(bar.TimeSignature);
                     bar.TimeSignatureId = timeSigBar.Id;
                     bar.TimeSignature = timeSig;
+
+                    var keySigBar = await Repository.GetKeySignatureAsync(bar.KeySignature);
+                    bar.KeySignatureId = keySigBar.Id;
+                    bar.KeySignature = keySigBar;
                 }
                 song.TempoChanges = MidiUtilities.GetTempoChanges(midiBase64encoded);
                 song.SongStats.NumberBars = song.Bars.Count();

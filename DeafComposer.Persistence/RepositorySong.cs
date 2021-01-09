@@ -14,14 +14,16 @@ namespace DeafComposer.Persistence
     {
         public async Task<Song> GetSongByIdAsync(long songId)
         {
-            var retObj =await dbContext.Songs
+            var retObj = await dbContext.Songs
                 .Include(x => x.Style)
                 .Include(x => x.Band)
                 .Include(c => c.TempoChanges)
                 .Include(z => z.SongStats)
                 .Include(f => f.SongStats.TimeSignature)
                 .Include(y => y.Bars)
-                .ThenInclude(y=>y.TimeSignature)
+                .ThenInclude(y => y.TimeSignature)
+                .Include(k => k.Bars)
+                .ThenInclude(k => k.KeySignature)
                 .FirstOrDefaultAsync(x => x.Id == songId);
 
             retObj.Bars = retObj.Bars.OrderBy(x => x.BarNumber).ToList();
@@ -36,7 +38,7 @@ namespace DeafComposer.Persistence
                 retObj.SongSimplifications.Add(simpl);
                 i++;
             }
-           
+
             return retObj;
         }
         public async Task<Song> GetSongByNameAndBandAsync(string songName, string bandName)

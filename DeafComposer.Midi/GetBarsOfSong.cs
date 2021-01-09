@@ -1,4 +1,5 @@
 ﻿using DeafComposer.Models.Entities;
+using DeafComposer.Models.Enums;
 using Melanchall.DryWetMidi.Core;
 using System;
 using System.Collections.Generic;
@@ -68,7 +69,11 @@ namespace DeafComposer.Midi
                 while (keySignatureEvents.Count > i && keySignatureEvents[keySigIndex + i].DeltaTime <= currentTick) i++;
                 if (i >= 1)
                 {
-                    currentKeySignature = ((KeySignatureEvent)keySignatureEvents[keySigIndex+i-1]).Key;
+                    currentKeySignature = new KeySignature
+                    {
+                        key = ((KeySignatureEvent)keySignatureEvents[keySigIndex + i - 1]).Key,
+                        scale = (ScaleType)((KeySignatureEvent)keySignatureEvents[keySigIndex + i - 1]).Scale
+                    };
                 }
              
 
@@ -132,54 +137,138 @@ namespace DeafComposer.Midi
         /// <summary>
         /// When a midi file has no key signature events, we want to deduce what is the best key signature to use
         /// and add it to all bars
-        /// This function returns a number that if positive means the number of sharps and if negative the number of
-        /// flats
+        ///         /// 
+        /// The reasoning to determine the key singature is this:
+        /// We have to determine first if the song is in a minor scale or a major scale. To determine this, we try to find
+        /// the tonic and see if the third used most frequently is a minor or a major 3rd
+        /// 
+        /// The best key signature is the one that will need less alterations. So we consider all possible keys 
+        /// and we select the one that needs less alterations
+        /// 
+        /// In the case of minor scales we don't include the 6th and 7th of the scale to do the calculations, because 
+        /// in minor scales the 6th and 7th have 2 possiblities equally likely to be used
         /// </summary>
         /// <param name="notes"></param>
         /// <returns></returns>
-        private static int GetKeySignatureOfSong(List<Note> notes)
+        private static KeySignature GetKeySignatureOfSong(List<Note> notes)
         {
-            var neededAlterations = new int[12];
+            var tonic = GetTonicOfNotes(notes);
+            var scale = GetScaleOfNotes(notes, tonic);
+            var retObj = new KeySignature { scale = scale };
+
+            if (tonic == 0 && scale == ScaleType.major || tonic == 9 && scale == ScaleType.minor) retObj.key = 0;
+            if (tonic == 7 && scale == ScaleType.major || tonic == 4 && scale == ScaleType.minor) retObj.key = 1;
+            if (tonic == 2 && scale == ScaleType.major || tonic == 11 && scale == ScaleType.minor) retObj.key =2;
+            if (tonic == 9 && scale == ScaleType.major || tonic == 6 && scale == ScaleType.minor) retObj.key = 3;
+            if (tonic == 4 && scale == ScaleType.major || tonic == 1 && scale == ScaleType.minor) retObj.key = 4;
+            if (tonic == 11 && scale == ScaleType.major || tonic == 8 && scale == ScaleType.minor) retObj.key = 5;
+            if (tonic == 6 && scale == ScaleType.major || tonic == 3 && scale == ScaleType.minor) retObj.key = 6;
+            if (tonic == 5 && scale == ScaleType.major || tonic == 2 && scale == ScaleType.minor) retObj.key = -1;
+            if (tonic == 10 && scale == ScaleType.major || tonic == 7 && scale == ScaleType.minor) retObj.key = -2;
+            if (tonic == 3 && scale == ScaleType.major || tonic == 0 && scale == ScaleType.minor) retObj.key = -3;
+            if (tonic == 8 && scale == ScaleType.major || tonic == 5 && scale == ScaleType.minor) retObj.key = -4;
+            if (tonic == 1 && scale == ScaleType.major || tonic == 10 && scale == ScaleType.minor) retObj.key = -5;
+
+            return retObj;
+        }
+        private static ScaleType GetScaleOfNotes(List<Note> notes, int tonic)
+        {
+            var thirdMajor = (tonic + 4) % 12;
+            var thirdMinor = (tonic + 3) % 12;
+            var thirdMajorFrequency = notes.Where(x => x.Pitch % 12 == thirdMajor).Count();
+            var thirdMinorFrequency = notes.Where(x => x.Pitch % 12 == thirdMinor).Count();
+
+            if (thirdMajorFrequency > thirdMinorFrequency) return ScaleType.major;
+            return ScaleType.minor;
+        }
+        private static int GetTonicOfNotes(List<Note> notes)
+        {
+            // totalUseOfPitch is a value that takes in consideration the times a pitch is used, the volume and the duration of
+            // time it is played. We calculate it for each pitch
+            var totalUseOfPitch = new int[12];
+            var firstRoot = GetTonicOfFirstAndLastChords(notes, "first");
+            var lastRoot = GetTonicOfFirstAndLastChords(notes, "last");
+
+            // when several notes are played at the same timethe higher notes and the lower notes are heard more than middle notes
+            // the percentage of time a pitch is the highest (or the lowest) pitch heard gives information about its importance
+            var timePitchIsHighestNote = new int[12];
+            var timePitchIsLowestNote = new int[12];
+            var probability = new double[12];
             for (var i = 0; i < 12; i++)
             {
-                neededAlterations[i] = 0;
-                var notAlteredPitches = new List<int>() { 0 + i, (2 + i) % 12, (4 + i) % 12, (5 + i) % 12, (7 + i) % 12, (9 + i) % 12, (11 + i) % 12 };
+                totalUseOfPitch[i] = notes.Where(x => x.Pitch % 12 == i).Select(y => y.Volume * y.DurationInTicks).Sum();
+                timePitchIsHighestNote[i] = GetHighestOrLowestPitchesOfNotes(notes, "high")
+                    .Where(x => x.Pitch % 12 == i).Select(y => y.Volume * y.DurationInTicks).Sum();
+                timePitchIsLowestNote[i] = GetHighestOrLowestPitchesOfNotes(notes, "low")
+                    .Where(x => x.Pitch % 12 == i).Select(y => y.Volume * y.DurationInTicks).Sum();
+            }
+            var totalUseForAllNotes = totalUseOfPitch.Sum();
+            var totalPitchIsHighesttNote = timePitchIsHighestNote.Sum();
+            var totalPitchIsLowestNote = timePitchIsLowestNote.Sum();
 
-                foreach (var n in notes)
+            for (var i = 0; i < 12; i++)
+            {
+                probability[i] = totalUseOfPitch[i] / (double)totalUseForAllNotes +
+                    // we give less importance to timePitchIsHighestNote than to totalUseOfPitch, so we divide by 2
+                    timePitchIsHighestNote[i] / ((double)totalPitchIsHighesttNote * 2) +
+                    // same with timePitchIsLowestNote
+                    timePitchIsLowestNote[i] / ((double)totalPitchIsLowestNote * 2);
+                if (i == firstRoot) probability[i] *= 1.2;
+                if (i == lastRoot) probability[i] *= 1.2;
+            }
+
+            var winner = probability.ToList().IndexOf(probability.Max());
+            return winner;
+        }
+        /// <summary>
+        /// Used to get the notes in a group of notes that are heard as the highest notes or as the lowest notes
+        /// </summary>
+        /// <param name="notes"></param>
+        /// <returns></returns>
+        private static List<Note> GetHighestOrLowestPitchesOfNotes(List<Note> notes, string which)
+        {
+            var retObj = new List<Note>();
+            foreach(var n in notes)
+            {
+                if (which.ToLower().Contains("high"))
                 {
-                    if (!notAlteredPitches.Where(x => n.Pitch % 12 == x).Any()) neededAlterations[i]++;
+                    if (notes.Where(x => x.Pitch > n.Pitch && x.StartSinceBeginningOfSongInTicks < n.EndSinceBeginningOfSongInTicks &&
+                    x.EndSinceBeginningOfSongInTicks > n.StartSinceBeginningOfSongInTicks).Count() == 0)
+                        retObj.Add(n);
+                }
+                else
+                {
+                    if (notes.Where(x => x.Pitch < n.Pitch && x.StartSinceBeginningOfSongInTicks < n.EndSinceBeginningOfSongInTicks &&
+                                   x.EndSinceBeginningOfSongInTicks > n.StartSinceBeginningOfSongInTicks).Count() == 0)
+                        retObj.Add(n);
                 }
             }
-            var key= neededAlterations.ToList().IndexOf(neededAlterations.Min());
-            switch (key)
+            return retObj;
+        }
+
+        private static int GetTonicOfFirstAndLastChords(List<Note> notes, string which)
+        {
+            var firstNote = notes.OrderBy(x => x.StartSinceBeginningOfSongInTicks).FirstOrDefault();
+            var firstChord= notes.Where(x => x.StartSinceBeginningOfSongInTicks < firstNote.EndSinceBeginningOfSongInTicks).ToList();
+
+            var lastNote = notes.OrderByDescending(x => x.EndSinceBeginningOfSongInTicks).FirstOrDefault();
+            var lastChord = notes.Where(x => x.EndSinceBeginningOfSongInTicks >= lastNote.StartSinceBeginningOfSongInTicks).ToList();
+
+            if (which.ToLower().Contains("first")) return GetRootOfChord(firstChord);
+            else return GetRootOfChord(lastChord);
+        }
+
+        private static int GetRootOfChord(List<Note> notes)
+        {
+            var probability = new int[notes.Count];
+            for (var i =0; i< notes.Count;i++)
             {
-                case 0:
-                    return 0;
-                case 1:
-                    return -5;
-                case 2:
-                    return 2;
-                case 3:
-                    return -3;
-                case 4:
-                    return 4;
-                case 5:
-                    return -1;
-                case 6:
-                    return 6;
-                case 7:
-                    return 1;
-                case 8:
-                    return -4;
-                case 9:
-                    return 3;
-                case 10:
-                    return -2;
-                case 11:
-                    return 5;
-                default:
-                    return 0;
+                if (notes.Where(x => x.Pitch % 12 == (notes[i].Pitch + 7) % 12).Any()) probability[i]+=5;
+                if (notes.Where(x => (x.Pitch % 12 == (notes[i].Pitch + 3) % 12) ||
+                                    (x.Pitch % 12 == (notes[i].Pitch + 4) % 12)).Any()) probability[i]+=2;
             }
+            var winner = probability.ToList().IndexOf(probability.Max());
+            return notes[winner].Pitch % 12;
         }
 
         private static List<TimeSignatureEvent> RemoveRedundantTimeSignatureEvents(IEnumerable<MidiEvent> events)

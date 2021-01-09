@@ -21,5 +21,9 @@ namespace DeafComposer.Persistence
             return await dbContext.TimeSignatures.Where(x => x.Numerator == ts.Numerator &
             x.Denominator == ts.Denominator).FirstOrDefaultAsync();
         }
+        public async Task<KeySignature> GetKeySignatureAsync(KeySignature ks)
+        {
+            return await dbContext.KeySignatures.Where(x => x.key == ks.key && x.scale == ks.scale).FirstOrDefaultAsync();
+        }
     }
 }

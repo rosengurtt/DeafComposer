@@ -14,9 +14,11 @@
         public long TimeSignatureId { get; set; }
         public TimeSignature TimeSignature { get; set; }
 
-        // A positive number from 1 to 7 means number of sharps
-        // A negative number from 1 to 7 means flats
-        public int KeySignature { get; set; }
+        public long KeySignatureId { get; set; }
+        public KeySignature KeySignature { get; set; }
+
+
+
 
         /// <summary>
         /// This flag is used when quantizing the duration of notes

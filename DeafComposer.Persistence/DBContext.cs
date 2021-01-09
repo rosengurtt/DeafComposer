@@ -13,6 +13,7 @@ namespace DeafComposer.Persistence
         public DbSet<Band> Bands { get; set; }
         public DbSet<Song> Songs { get; set; }
         public DbSet<TimeSignature> TimeSignatures { get; set; }
+        public DbSet<KeySignature> KeySignatures { get; set; }
 
         public DbSet<Note> Notes { get; set; }
         public DbSet<Bar> Bars { get; set; }
@@ -38,6 +39,7 @@ namespace DeafComposer.Persistence
             modelBuilder.Entity<Band>().ToTable("Bands");
             modelBuilder.Entity<Song>().ToTable("Songs");
             modelBuilder.Entity<TimeSignature>().ToTable("TimeSignatures");
+            modelBuilder.Entity<KeySignature>().ToTable("KeySignatures");
             modelBuilder.Entity<Note>().ToTable("Notes");
             modelBuilder.Entity<Bar>().ToTable("Bars");
             modelBuilder.Entity<PitchBendItem>().ToTable("PitchBendItems");

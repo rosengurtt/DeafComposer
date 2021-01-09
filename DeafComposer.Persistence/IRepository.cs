@@ -45,6 +45,7 @@ namespace DeafComposer.Persistence
         #endregion
         #region Time Signatures
         Task<TimeSignature> GetTimeSignatureAsync(TimeSignature timeSignature);
+        public Task<KeySignature> GetKeySignatureAsync(KeySignature ks);
         #endregion
         #region Artifacts
         Task<Artifact> GetArtifactByIdAsync(long ArtifactId);
