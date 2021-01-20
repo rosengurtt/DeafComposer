@@ -9,6 +9,18 @@ namespace DeafComposer.Midi
 {
     public static partial class MidiUtilities
     {
+        /// <summary>
+        /// Simplification 1 is a version of the original Midi file where the timings of the notes have been "improved" so
+        /// when we generate the music notation representation it makes more sense. For example if a note would be displayed
+        /// as a sixteenth tied with a thirtysecond, when it really should be shown as a sixteenth, it makes that adjusment.
+        /// It also splits the voices that are polyphonic in monophonic voices. Polyphonic means that there are notes playing
+        /// simultaneously, but they don't start and end together. If we have a chord of 3 notes starting and ending together
+        /// we can represent that in music notation with a single voice.
+        /// So simplification 1 should sound exactly as the original midi file, but it has been massaged so it is easier to
+        /// draw in musical notation
+        /// </summary>
+        /// <param name="song"></param>
+        /// <returns></returns>
         public static SongSimplification GetSimplification1ofSong(Song song)
         {
             var notesObj0 = song.SongSimplifications[0].Notes;
@@ -114,7 +126,7 @@ namespace DeafComposer.Midi
             var startOfLastBar = lastBar.TicksFromBeginningOfSong;
             var endOfLastBar = startOfLastBar + lastBar.TimeSignature.Numerator * ticksPerQuarter * 4 / lastBar.TimeSignature.Denominator;
             var retObj = notes.Clone();
-            if (retObj.Where(x => x.StartSinceBeginningOfSongInTicks < startOfLastBar).Any())
+            if (!retObj.Where(x => x.StartSinceBeginningOfSongInTicks >= startOfLastBar).Any())
                 endOfLastBar = startOfLastBar;
             retObj.ForEach(x => { if (x.EndSinceBeginningOfSongInTicks > endOfLastBar) x.EndSinceBeginningOfSongInTicks = endOfLastBar; });
             return retObj;
@@ -233,7 +245,7 @@ namespace DeafComposer.Midi
         /// same time. We select the time so it matches a suitable subdivision of the beat
         /// 
         /// When we have consecutive notes in a voice, where each one ends approximately when the next starts, but
-        /// one of the notes is quite larger or shorter we can assume it is a mistake. If it is much, much larger, like
+        /// one of the notes is larger or shorter we can assume it is a mistake. If it is much, much larger, like
         /// a half, when the other notes are sixteens we assume it is on purpose. But if is an eight or a quarter and
         /// the others are sixteens, we assume is a mistake and we fix it
         /// </summary>
@@ -627,7 +639,10 @@ namespace DeafComposer.Midi
                         }
                         break;
                     }
-                    upperVoice = GetUpperVoiceForTrackWithNoChords(remainingNotes);
+                    if (GetProportionOfNotesInChords(remainingNotes) > 30)
+                        upperVoice = GetUpperVoiceForTrackWithChords(remainingNotes);
+                    else
+                        upperVoice = GetUpperVoiceForTrackWithNoChords(remainingNotes);
                     newVoicesNotes[voice++] = upperVoice;
                     upperVoice.ForEach(x => remainingNotes.Remove(x));
                 }
@@ -817,7 +832,7 @@ namespace DeafComposer.Midi
                     .FirstOrDefault();
                 if (nextNote != null)
                 {
-                    var gap = GapBetweenNotes(n, nextNote);
+                    var gap = GetGapBetweenNotes(n, nextNote);
                     if (gap > 0)
                         n.EndSinceBeginningOfSongInTicks = GetBestEndForNote(n, gap);
                 }
@@ -853,7 +868,7 @@ namespace DeafComposer.Midi
         /// <param name="m"></param>
         /// <param name="n"></param>
         /// <returns></returns>
-        private static long GapBetweenNotes(Note m, Note n)
+        private static long GetGapBetweenNotes(Note m, Note n)
         {
             if (m.StartSinceBeginningOfSongInTicks == n.StartSinceBeginningOfSongInTicks) return 0;
             var first = m.StartSinceBeginningOfSongInTicks < n.StartSinceBeginningOfSongInTicks ? m : n;
@@ -979,6 +994,42 @@ namespace DeafComposer.Midi
                     return second - second % distance;
             }
             return first;
+        }
+   
+        /// <summary>
+        /// When we are splitting a polyphonic voice in multiple monophonic voices we have to consider the case when a
+        /// voice is essentially playing chords. A voice may consist of 2 independent melodies, like a piano piece where the
+        /// right hand and the left hand play independent melodies, in which case there can be ocasionally different notes
+        /// starting and ending together, but the voice is not a succession of chords. Or it can be for ex. a guitar playing 
+        /// chords, in which case all the notes played are part of chords and it doesn't make sense to split the voice in
+        /// different voices, because there aren't independent melodies playing together
+        /// 
+        /// There is also the case where the left hand is playing chords and the right hand is playing a melody, in which
+        /// case we have to split the voice in 2, one that is a melody and the other consisting of chords
+        /// 
+        /// This function returns the proportion (as percentage) of notes that are part of chords, so we can handle the 
+        /// situation when we have chords being played
+        /// </summary>
+        /// <param name="notes"></param>
+        /// <returns></returns>
+        private static int GetProportionOfNotesInChords(List<Note> notes)
+        {
+            var notesInChords = new List<Note>();
+            var remainingNotesToAnalyze = notes.Clone();
+            var tolerance = 3;
+
+            while (remainingNotesToAnalyze.Count>0)
+            {
+                var n = remainingNotesToAnalyze[0];
+                var simultaneousWithN = remainingNotesToAnalyze.Where(x =>
+                 Math.Abs(x.StartSinceBeginningOfSongInTicks - n.StartSinceBeginningOfSongInTicks) < tolerance &&
+                 Math.Abs(x.EndSinceBeginningOfSongInTicks - n.EndSinceBeginningOfSongInTicks) < tolerance).ToList();
+                if (simultaneousWithN.Count() > 2)
+                    simultaneousWithN.ForEach(x => { notesInChords.Add(x); remainingNotesToAnalyze.Remove(x); });
+                else
+                    remainingNotesToAnalyze.Remove(n);
+            }
+            return notesInChords.Count * 100 / notes.Count;
         }
     }
 }

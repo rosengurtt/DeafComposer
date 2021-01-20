@@ -1,5 +1,4 @@
 ﻿using DeafComposer.Models.Entities;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -7,6 +6,16 @@ namespace DeafComposer.Midi
 {
     public static partial class MidiUtilities
     {
+        /// <summary>
+        /// Makes minor adjustments to notes that don't start in the beat for a very small amount
+        /// It has some intelligence in the sense that a thirtysecond, that is a very short note, may make sense that starts
+        /// in an odd place, because in a passage of the song where the player is playing a lot of notes in a short time, we
+        /// can expect to have notes with unusual start locations. Also when we have an embelishment, we can expect notes a
+        /// short time before or after the beat. But if a note has a duration of a quarter, we don't expect it to be played 
+        /// 3 ticks after the beat
+        /// </summary>
+        /// <param name="notes"></param>
+        /// <returns></returns>
         public static List<Note> QuantizeNotes(List<Note> notes)
         {
             var retObj = new List<Note>();

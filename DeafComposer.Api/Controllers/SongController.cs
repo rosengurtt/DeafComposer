@@ -65,7 +65,7 @@ namespace DeafComposer.Controllers
         }
 
         [HttpGet("{songId}/midi")]
-        public async Task<IActionResult> GetSongMidi(int songId, int simplificationVersion, int startInSeconds = 0, string mutedTracks = null)
+        public async Task<IActionResult> GetSongMidi(int songId, int tempoInBeatsPerMinute, int simplificationVersion, int startInSeconds = 0, string mutedTracks = null)
         {
             try
             {
@@ -75,9 +75,21 @@ namespace DeafComposer.Controllers
                 int[] tracksToMute = mutedTracks?.Split(',').Select(x => int.Parse(x)).ToArray();
 
                 song.SongSimplifications = new List<SongSimplification>();
+                var tempoInMicrosecondsPerBeat = 120 * 500000 / tempoInBeatsPerMinute;
+                // If the tempoInBeatsPerMinute parameter is passed, we recalculate all the tempo changes. The tempo change shown to the
+                // user in the UI is the first one, so if the user changes it, we get the proportion of the new tempo to the old one and
+                // we change all tempos in the same proportion
+                var tempoChanges = tempoInBeatsPerMinute != 0 ? song.TempoChanges.Select(x => new TempoChange
+                {
+                    Id = x.Id,
+                    SongId = songId,
+                    TicksSinceBeginningOfSong = x.TicksSinceBeginningOfSong,
+                    MicrosecondsPerQuarterNote = (int)Math.Round((double)x.MicrosecondsPerQuarterNote * tempoInMicrosecondsPerBeat / song.TempoChanges[0].MicrosecondsPerQuarterNote)
+                }).ToList() :
+                song.TempoChanges;
                 song.SongSimplifications.Add(
                     await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simplificationVersion, false, tracksToMute));
-                var base64encodedMidiBytes = MidiUtilities.GetMidiBytesFromNotes(song.SongSimplifications[0].Notes, song.TempoChanges);
+                var base64encodedMidiBytes = MidiUtilities.GetMidiBytesFromNotes(song.SongSimplifications[0].Notes, tempoChanges);
 
                 var ms = new MemoryStream(MidiUtilities.GetMidiBytesFromPointInTime(base64encodedMidiBytes, startInSeconds));
 
