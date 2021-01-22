@@ -26,6 +26,8 @@ namespace DeafComposer.Midi
             var notesObj0 = song.SongSimplifications[0].Notes;
             var notesEvolution = GetNotesEvolution(notesObj0);
 
+            var percusionNotes = notesObj0.Where(n => n.IsPercussion == true).ToList();
+
             var notesObj1 = QuantizeNotes(notesObj0);
             var dif1 = CompareListOfNotes(notesObj0, notesObj1);
             notesEvolution = GetNotesEvolution(notesObj1, notesEvolution);
@@ -536,7 +538,7 @@ namespace DeafComposer.Midi
             // The variable newVoice is used to generate the numbers of the reordered voices
             byte newVoice = 0;
             // first split the notes by instrument
-            var noteInstrument = notesCopy.Where(m => m.IsPercussion == false).GroupBy(n => n.Instrument).OrderBy(x => x);
+            var noteInstrument = notesCopy.Where(m => m.IsPercussion == false).GroupBy(n => n.Instrument).OrderBy(x => x.Key).ToList();
             // now loop by instrument
             foreach (var noteInstGroup in noteInstrument)
             {
@@ -622,12 +624,16 @@ namespace DeafComposer.Midi
                 // We keep in this variable the notes of this voice that we still haven't added to newVoicesNotes
                 // We initialize it with all the notes of the voice
                 var remainingNotes = new List<Note>(voicesNotes[v]);
+                // we store in this variable the total number of notes originally in voice v
+                var totalNotesInVoice_v = voicesNotes[v].Count;
                 List<Note> upperVoice;
                 while (remainingNotes.Count > 0)
                 {
-                    // If there are not many notes left, add them to the last voice, don't create a new voice
+                    // If we have been extracting voices from the current voice v and there are not many notes left, 
+                    // add them to the last voice added, don't create a new voice
                     // notes.Count / voice is the average of notes per voice for this song (we add 1 to avoid division by 0)
-                    if (remainingNotes.Count < notes.Count / (6 * (voice + 1)))
+                    if (remainingNotes.Count < totalNotesInVoice_v / 5 && 
+                        remainingNotes.Count < notes.Count / (6 * (voice + 1)))
                     {
                         var lastVoice = newVoicesNotes[(byte)(voice - 1)];
                         var problematicNotes = GetProblematicNotes(lastVoice);
