@@ -123,10 +123,10 @@ namespace DeafComposer.Analysis.Simplification
                Math.Abs(x.StartSinceBeginningOfSongInTicks - n.StartSinceBeginningOfSongInTicks) < 96 * 12
                || Math.Abs(x.EndSinceBeginningOfSongInTicks - n.EndSinceBeginningOfSongInTicks) < 96 * 12)
                 .ToList();
-            var averageDurationOfCloseNeighboors = closeNeighboors.Select(x => x.DurationInTicks).Average();
-            var averageVolumeOfCloseNeighboors = closeNeighboors.Select(x => (int)x.Volume).Average();
-            var averageDurationOfFarNeighboors = farNeighboors.Select(x => x.DurationInTicks).Average();
-            var averageVolumeOfFarNeighboors = farNeighboors.Select(x => (int)x.Volume).Average();
+            var averageDurationOfCloseNeighboors = closeNeighboors.Average(x => x.DurationInTicks);
+            var averageVolumeOfCloseNeighboors = closeNeighboors.Average(x => (int)x.Volume);
+            var averageDurationOfFarNeighboors = farNeighboors.Average(x => x.DurationInTicks);
+            var averageVolumeOfFarNeighboors = farNeighboors.Average(x => (int)x.Volume);
 
             // We give 70% importance to close neighboors and 30% to far neighboors
             var averageDurationOfNeighboors = 0.7 * averageDurationOfCloseNeighboors + 0.3 * averageDurationOfFarNeighboors;

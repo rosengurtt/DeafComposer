@@ -19,14 +19,5 @@ namespace DeafComposer.Midi
             };
             return retObj;
         }
-        // Given a group of notes that may be played by several voices, returns all the different
-        // voices found in the notes
-        private static List<int> GetVoicesOfNotes(List<Note> notes)
-        {
-            var retObj = new List<int>();
-            foreach (var v in notes.Select(n => n.Voice).Distinct())
-                retObj.Add(v);
-            return retObj;
-        }
     }
 }

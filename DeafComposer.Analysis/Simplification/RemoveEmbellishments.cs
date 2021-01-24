@@ -91,13 +91,13 @@ namespace DeafComposer.Analysis.Simplification
                         var right = sliceOf6[5];
                         var middle = new Note
                         {
-                            Pitch = (byte)Math.Round(neighboors.Take(4).Select(x => (int)x.Pitch).Average()),
+                            Pitch = (byte)Math.Round(neighboors.Take(4).Average(x => x.Pitch)),
                             StartSinceBeginningOfSongInTicks = sliceOf6[0].StartSinceBeginningOfSongInTicks,
                             EndSinceBeginningOfSongInTicks = sliceOf6[4].EndSinceBeginningOfSongInTicks,
                             Instrument = n.Instrument,
                             IsPercussion = false,
                             Voice = n.Voice,
-                            Volume = (byte)Math.Round(neighboors.Take(4).Select(x => (int)x.Volume).Average())
+                            Volume = (byte)Math.Round(neighboors.Take(4).Average(x => (int)x.Volume))
                         };
                         retObj.Add(left);
                         retObj.Add(middle);
@@ -111,13 +111,13 @@ namespace DeafComposer.Analysis.Simplification
                         var right = sliceOf7[6];
                         var middle = new Note
                         {
-                            Pitch = (byte)Math.Round(neighboors.Take(5).Select(x => (int)x.Pitch).Average()),
+                            Pitch = (byte)Math.Round(neighboors.Take(5).Average(x => (int)x.Pitch)),
                             StartSinceBeginningOfSongInTicks = sliceOf7[0].StartSinceBeginningOfSongInTicks,
                             EndSinceBeginningOfSongInTicks = sliceOf7[5].EndSinceBeginningOfSongInTicks,
                             Instrument = n.Instrument,
                             IsPercussion = false,
                             Voice = n.Voice,
-                            Volume = (byte)Math.Round(neighboors.Take(5).Select(x => (int)x.Volume).Average())
+                            Volume = (byte)Math.Round(neighboors.Take(5).Average(x => (int)x.Volume))
                         };
                         retObj.Add(left);
                         retObj.Add(middle);
@@ -172,13 +172,13 @@ namespace DeafComposer.Analysis.Simplification
                         // until the end of the trill
                         var extendedNote = new Note
                         {
-                            Pitch = (byte)Math.Round(neighboors.Take(4).Select(x => (int)x.Pitch).Average()),
+                            Pitch = (byte)Math.Round(neighboors.Take(4).Average(x => (int)x.Pitch)),
                             StartSinceBeginningOfSongInTicks = n.StartSinceBeginningOfSongInTicks,
                             EndSinceBeginningOfSongInTicks = neighboors[j + 1].EndSinceBeginningOfSongInTicks,
                             Instrument = n.Instrument,
                             IsPercussion = false,
                             Voice = n.Voice,
-                            Volume = (byte)Math.Round(neighboors.Take(j * 2).Select(x => (int)x.Volume).Average())
+                            Volume = (byte)Math.Round(neighboors.Take(j * 2).Average(x => (int)x.Volume))
                         };
                         retObj.Add(extendedNote);
                         for (int i = 1; i < j; i++)
