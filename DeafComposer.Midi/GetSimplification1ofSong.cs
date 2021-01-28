@@ -39,14 +39,14 @@ namespace DeafComposer.Midi
 
             }
 
-            var notesObj3 = RemoveDuplicationOfNotes(notesObj2);
+
+            var notesObj3 = FixLengthsOfChordNotes(notesObj2);
             if (notesObj3.Where(x => x.DurationInTicks == 0).Count() > 0)
             {
 
             }
 
-            // Split voices that have more than one melody playing at the same time
-            var notesObj4 = FixLengthsOfChordNotes(notesObj3);
+            var notesObj4 = RemoveDuplicationOfNotes(notesObj3);
             if (notesObj4.Where(x => x.DurationInTicks == 0).Count() > 0)
             {
 
@@ -104,17 +104,6 @@ namespace DeafComposer.Midi
 
 
 
-        /// <summary>
-        /// Given 2 notes, it returns the interval of time in ticks when the 2 notes are playing simultaneously
-        /// </summary>
-        /// <param name="n"></param>
-        /// <param name="m"></param>
-        /// <returns></returns>
-        private static long GetIntersectionOfNotesInTicks(Note n, Note m)
-        {
-           return Math.Min(m.EndSinceBeginningOfSongInTicks, n.EndSinceBeginningOfSongInTicks) -
-                Math.Max(m.StartSinceBeginningOfSongInTicks, n.StartSinceBeginningOfSongInTicks);
-        }
 
 
         // Returns the numbers of the voices which consist of percusion notes
@@ -125,11 +114,6 @@ namespace DeafComposer.Midi
             var instrumentsNotes = notes.Where(n => n.IsPercussion == true);
             return instrumentsNotes.Select(n => n.Voice).Distinct().ToList();
         }
-
-
- 
-
-
 
 
 

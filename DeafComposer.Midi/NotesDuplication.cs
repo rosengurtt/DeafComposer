@@ -53,7 +53,7 @@ namespace DeafComposer.Midi
                         {
                             // They don't start together. Shorten the first one
                             var firstNote = n.StartSinceBeginningOfSongInTicks <= m.StartSinceBeginningOfSongInTicks ? n : m;
-                            var secondNote = n.StartSinceBeginningOfSongInTicks <= m.StartSinceBeginningOfSongInTicks ? n : m;
+                            var secondNote = n.StartSinceBeginningOfSongInTicks <= m.StartSinceBeginningOfSongInTicks ? m : n;
                             firstNote.EndSinceBeginningOfSongInTicks = secondNote.StartSinceBeginningOfSongInTicks;
                         }
                     }             
@@ -64,6 +64,17 @@ namespace DeafComposer.Midi
             return retObj.OrderBy(x => x.StartSinceBeginningOfSongInTicks).ToList();
         }
 
+        /// <summary>
+        /// Given 2 notes, it returns the interval of time in ticks when the 2 notes are playing simultaneously
+        /// </summary>
+        /// <param name="n"></param>
+        /// <param name="m"></param>
+        /// <returns></returns>
+        private static long GetIntersectionOfNotesInTicks(Note n, Note m)
+        {
+            return Math.Min(m.EndSinceBeginningOfSongInTicks, n.EndSinceBeginningOfSongInTicks) -
+                 Math.Max(m.StartSinceBeginningOfSongInTicks, n.StartSinceBeginningOfSongInTicks);
+        }
 
     }
 }

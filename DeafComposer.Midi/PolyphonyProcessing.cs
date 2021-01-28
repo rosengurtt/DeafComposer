@@ -31,7 +31,7 @@ namespace DeafComposer.Midi
         {
             var retObj = new List<Note>();
             // in voicesNotes we have the original notes separated by voice
-            var voicesNotes = GetNotesAsDictionary(notes.Clone());
+            var voicesNotes = GetNotesAsDictionary(notes.Where(x => x.IsPercussion == false).ToList().Clone());
             // we will build this new dictionary that possibly will have more voices, but the same total of notes
             var newVoicesNotes = new Dictionary<byte, List<Note>>();
             byte voice = 0;
@@ -72,7 +72,7 @@ namespace DeafComposer.Midi
                         else
                             upperVoice = GetUpperVoiceForTrackWithNoChords(remainingNotes);
                         newVoicesNotes[voice++] = upperVoice;
-                        upperVoice.ForEach(x => remainingNotes.Remove(x));
+                        upperVoice.ForEach(x => remainingNotes.Remove(remainingNotes.Where(y=>y.Id==x.Id).FirstOrDefault()));
                         totalSplitsSoFar++;
 
                     }
@@ -106,10 +106,10 @@ namespace DeafComposer.Midi
             foreach (var n in notes)
             {
                 // Check if we have already added this note
-                if (retObj.Where(x => x.TempId == n.TempId).Count() > 0) continue;
+                if (retObj.Where(x => x.Id == n.Id).Count() > 0) continue;
 
                 var simulNotes = notes.Where(m =>
-                m.TempId != n.TempId &&
+                m.Id != n.Id &&
                 GetIntersectionOfNotesInTicks(m, n) > 0 &&
                 !AreNotesExactlySimultaneous(m, n))
                 .ToList();
@@ -118,11 +118,11 @@ namespace DeafComposer.Midi
                     retObj.Add(n);
 
                     // add also notes that start and end both at the same time
-                    var chordNotes = notes.Where(m => m.TempId != n.TempId && AreNotesExactlySimultaneous(m, n)).ToList();
+                    var chordNotes = notes.Where(m => m.Id != n.Id && AreNotesExactlySimultaneous(m, n)).ToList();
                     foreach (var chordNote in chordNotes)
                     {
                         // If it was not already added to retObj, add it
-                        if (retObj.Where(x => x.TempId == chordNote.TempId).Count() == 0)
+                        if (retObj.Where(x => x.Id == chordNote.Id).Count() == 0)
                             retObj.Add(chordNote);
                     }
                 }
@@ -181,7 +181,7 @@ namespace DeafComposer.Midi
                 // simulNotes are the notes played at the same time for a period of time that is more than
                 // 1/43 of the shorter note or maxTolerance, whichever is smaller
                 var simulNotes = notes.Where(m =>
-                m.TempId != n.TempId &&
+                m.Id != n.Id &&
                 GetIntersectionOfNotesInTicks(m, n) > Math.Min(maxTolerance, Math.Min(m.DurationInTicks, n.DurationInTicks) / 3))
                 .ToList();
                 if (simulNotes.Where(m => m.Pitch > n.Pitch).ToList().Count == 0)
@@ -190,12 +190,58 @@ namespace DeafComposer.Midi
             // Fix duration of last note
             var lastNote = retObj[retObj.Count - 1];
             var maxVariation = lastNote.DurationInTicks / 4;
-            var bestEndForLastNote = GetTickOfHighestImportanceInSegment(lastNote.StartSinceBeginningOfSongInTicks - maxVariation, lastNote.StartSinceBeginningOfSongInTicks + maxVariation);
+            var bestEndForLastNote = GetTickOfHighestImportanceInSegment(lastNote.EndSinceBeginningOfSongInTicks - maxVariation, lastNote.EndSinceBeginningOfSongInTicks + maxVariation);
             lastNote.EndSinceBeginningOfSongInTicks = bestEndForLastNote;
 
-            RemoveMinorOverlappingsAndSmallGapsBetweenConsecutiveNotesInVoiceWithNoChords(retObj);
             RemoveNotesThatAreTooLowForThisVoice(retObj, notes);
 
+            retObj = RemoveMinorOverlappingsAndSmallGapsBetweenConsecutiveNotesInVoiceWithNoChords(retObj);
+
+            return retObj;
+        }
+        private static List<(Note, Note)> buscameLasNotasConflictivas(List<Note> notes)
+        {
+            var retObj = new List<(Note, Note)>();
+            foreach (var n in notes)
+            {
+                var unison = notes.Where(m => GetIntersectionOfNotesInTicks(m, n) > 0 && m.Id != n.Id);
+                if (unison.Count() > 0)
+                {
+                    foreach (var x in unison)
+                        retObj.Add((n, x));
+                }
+            }
+            return retObj;
+        }
+        private static List<(Note, Note)> buscameLasNotasPolyphonicas(List<Note> notes)
+        {
+            var retObj = new List<(Note, Note)>();
+            foreach (var n in notes)
+            {
+                var unison = notes.Where(m => m.StartSinceBeginningOfSongInTicks == n.StartSinceBeginningOfSongInTicks &&
+                  m.EndSinceBeginningOfSongInTicks == n.EndSinceBeginningOfSongInTicks && m.Id != n.Id);
+                if (unison.Count() > 0)
+                {
+                    foreach (var x in unison)
+                        retObj.Add((n, x));
+                }
+            }
+            return retObj;
+        }
+
+        private static List<(Note, Note)> DameLaDif(List<Note> notes1, List<Note> notes2)
+        {
+            var retObj = new List<(Note, Note)>();
+            foreach (var n in notes1)
+            {
+                if (notes2.Where(m => m.StartSinceBeginningOfSongInTicks == n.StartSinceBeginningOfSongInTicks &&
+                m.EndSinceBeginningOfSongInTicks == n.EndSinceBeginningOfSongInTicks
+                && m.Pitch == n.Pitch).Count() == 0)
+                {
+                    var x = notes2.Where(y => y.StartSinceBeginningOfSongInTicks == n.StartSinceBeginningOfSongInTicks && y.Pitch == n.Pitch).FirstOrDefault();
+                    retObj.Add((n, x));
+                }
+            }
             return retObj;
         }
         /// <summary>
@@ -208,20 +254,23 @@ namespace DeafComposer.Midi
         /// It modifies the notes passed in the notes parameter
         /// </summary>
         /// <param name="notes"></param>
-        private static void RemoveMinorOverlappingsAndSmallGapsBetweenConsecutiveNotesInVoiceWithNoChords(List<Note> notes)
+        private static List<Note> RemoveMinorOverlappingsAndSmallGapsBetweenConsecutiveNotesInVoiceWithNoChords(List<Note> notes)
         {
-            foreach (var n in notes.OrderBy(x => x.StartSinceBeginningOfSongInTicks))
+            var retObj = notes.Clone();
+            foreach (var n in retObj.OrderBy(x => x.StartSinceBeginningOfSongInTicks))
             {
                 // Remove overlappings
-                var simulNote = notes.Where(m =>
-                      m.TempId != n.TempId && GetIntersectionOfNotesInTicks(m, n) > 0)
+                var simulNote = retObj.Where(m =>
+                      m.Id != n.Id && GetIntersectionOfNotesInTicks(m, n) > 0 &&
+                      !AreNotesExactlySimultaneous(m,n))
                     .OrderBy(x => x.StartSinceBeginningOfSongInTicks)
                    .FirstOrDefault();
+
                 if (simulNote != null)
                     n.EndSinceBeginningOfSongInTicks = simulNote.StartSinceBeginningOfSongInTicks;
-
+           
                 // Remove gaps
-                var nextNote = notes.Where(x => x.StartSinceBeginningOfSongInTicks > n.StartSinceBeginningOfSongInTicks)
+                var nextNote = retObj.Where(x => x.StartSinceBeginningOfSongInTicks > n.StartSinceBeginningOfSongInTicks)
                     .OrderBy(y => y.StartSinceBeginningOfSongInTicks)
                     .FirstOrDefault();
                 if (nextNote != null)
@@ -231,6 +280,7 @@ namespace DeafComposer.Midi
                         n.EndSinceBeginningOfSongInTicks = GetTickOfHighestImportanceInSegment(n.EndSinceBeginningOfSongInTicks, nextNote.StartSinceBeginningOfSongInTicks);
                 }
             }
+            return retObj;
         }
 
 
@@ -262,7 +312,7 @@ namespace DeafComposer.Midi
         {
             var restOfNotes = new List<Note>();
             foreach (var n in poolOfNotes)
-                if (upperVoice.Where(x => x.TempId == n.TempId).Count() == 0) restOfNotes.Add(n);
+                if (upperVoice.Where(x => x.Id == n.Id).Count() == 0) restOfNotes.Add(n);
 
             if (restOfNotes.Count == 0) return;
 
@@ -273,8 +323,6 @@ namespace DeafComposer.Midi
                 var upperVoiceNeighbors = upperVoice
                     .Where(y => y.StartSinceBeginningOfSongInTicks > n.StartSinceBeginningOfSongInTicks - 300 &&
                     y.StartSinceBeginningOfSongInTicks < n.StartSinceBeginningOfSongInTicks + 300).ToList();
-
-
 
                 var restOfNotesNeighboors = restOfNotes
                     .Where(y => y.StartSinceBeginningOfSongInTicks > n.StartSinceBeginningOfSongInTicks - 300 &&
@@ -340,7 +388,7 @@ namespace DeafComposer.Midi
             foreach (var n in notes.OrderBy(x => x.StartSinceBeginningOfSongInTicks))
             {
                 var simulNotes = notes.Where(m =>
-                   m.TempId != n.TempId &&
+                   m.Id != n.Id &&
                    GetIntersectionOfNotesInTicks(m, n) > 0 &&
                    !AreNotesExactlySimultaneous(m, n))
                     .OrderBy(x => x.StartSinceBeginningOfSongInTicks)
