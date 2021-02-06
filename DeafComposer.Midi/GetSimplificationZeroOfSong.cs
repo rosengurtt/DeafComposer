@@ -1,4 +1,5 @@
 ﻿using DeafComposer.Models.Entities;
+using DeafComposer.Models.Helpers;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -15,7 +16,7 @@ namespace DeafComposer.Midi
             {
                 Notes = notesObj,
                 SimplificationVersion = 0,
-                NumberOfVoices = GetVoicesOfNotes(notesObj).Count()
+                NumberOfVoices = notesObj.Voices().Count()
             };
             return retObj;
         }

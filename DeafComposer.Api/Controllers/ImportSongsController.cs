@@ -24,7 +24,7 @@ namespace DeafComposer.Api.Controllers
             this.Repository = Repository;
         }
         [HttpGet]
-        public async Task<ActionResult> ImportMidis(string musicFolderPath = @"C:\music\test\bach")
+        public async Task<ActionResult> ImportMidis(string musicFolderPath = @"C:\music\test\BAch")
         {
             try
             {

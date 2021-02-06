@@ -25,7 +25,7 @@ namespace DeafComposer.Midi
             // one with the lower volume, or if the volume is more or less the same, the shortest one
             var notesToRemove = new List<Note>();
             var volumeTolerance = 5;    // The amount the volumes have to differ to consider them different
-            var voices = GetVoicesOfNotes(retObj);
+            var voices = retObj.NonPercussionVoices();
             foreach (var v in voices)
             {
                 var notesOfVoice = retObj.Where(w => w.Voice == v)

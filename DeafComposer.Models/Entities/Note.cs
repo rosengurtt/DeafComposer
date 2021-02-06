@@ -35,6 +35,17 @@ namespace DeafComposer.Models.Entities
         public byte Voice { get; set; }
 
 
+
+
+        /// <summary>
+        /// When writing music in musical notation and there are 2 independent melodies played at the same time (like the left and right
+        /// hands on a piano piece) we need to separate the notes of the corresponding melodies. In the example, we would assign the highest
+        /// pitch melody (the right hand) to SubVoice 0 and the left hand to SubVoice 1
+        /// 
+        /// We  use this field temporarily when splitting voices. We then create a new set of monophonic voices
+        /// </summary>
+        [NotMapped]
+        public byte SubVoice { get; set; }
         public byte Instrument { get; set; }
         public List<PitchBendItem> PitchBending { get; set; }
 
@@ -59,7 +70,8 @@ namespace DeafComposer.Models.Entities
                 Instrument = this.Instrument,
                 PitchBending = PitchBending.Select(s => s.Clone()).ToList(),
                 IsPercussion = this.IsPercussion,
-                Voice = this.Voice
+                Voice = this.Voice,
+                SubVoice = this.SubVoice
             };
         }
         public bool IsEqual(object n)
@@ -74,6 +86,7 @@ namespace DeafComposer.Models.Entities
                 Note noty = (Note)n;
                 if (noty.Pitch == Pitch &&
                     noty.Voice == Voice &&
+                    noty.SubVoice == SubVoice &&
                     noty.Volume == Volume &&
                     noty.IsPercussion == IsPercussion &&
                     noty.StartSinceBeginningOfSongInTicks == StartSinceBeginningOfSongInTicks &&

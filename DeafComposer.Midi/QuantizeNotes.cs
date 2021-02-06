@@ -59,7 +59,7 @@ namespace DeafComposer.Midi
         {
             // We work on a copy so we don't modify the supplied notes
             var retObj = notes.Clone();
-            var voices = GetVoicesOfNotes(retObj);
+            var voices = retObj.NonPercussionVoices();
 
             foreach (var v in voices)
             {
@@ -135,6 +135,10 @@ namespace DeafComposer.Midi
         private static long StartDifference(Note n1, Note n2)
         {
             return Math.Abs(n1.StartSinceBeginningOfSongInTicks - n2.StartSinceBeginningOfSongInTicks);
+        }
+        private static long EndDifference(Note n1, Note n2)
+        {
+            return Math.Abs(n1.EndSinceBeginningOfSongInTicks - n2.EndSinceBeginningOfSongInTicks);
         }
         /// <summary>
         /// Given a group of notes that are aprox simultaneous but not exactly, it finds a start tick that falls 
@@ -271,7 +275,7 @@ namespace DeafComposer.Midi
             }
 
             // In this loop we make the second type of correction, when a note has a wrong duration
-            var voices = GetVoicesOfNotes(retObj);
+            var voices = retObj.NonPercussionVoices();
             foreach (var v in voices)
             {
                 var notesOfVoice = notes.Where(x => x.Voice == v).OrderBy(y => y.StartSinceBeginningOfSongInTicks).ToList();
@@ -415,7 +419,7 @@ namespace DeafComposer.Midi
         }
 
         // Returns true if the 2 voices start and finish at the same time (optionally with some tolerance)
-        private static bool AreNotesExactlySimultaneous(Note m, Note n, int tolerance = 0)
+        private static bool DoNotesStartAndEndTogether(Note m, Note n, int tolerance = 0)
         {
             return Math.Abs(m.StartSinceBeginningOfSongInTicks - n.StartSinceBeginningOfSongInTicks) <= tolerance &&
                             Math.Abs(m.EndSinceBeginningOfSongInTicks - n.EndSinceBeginningOfSongInTicks) <= tolerance; ;
