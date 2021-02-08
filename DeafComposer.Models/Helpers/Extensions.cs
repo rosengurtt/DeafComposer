@@ -28,6 +28,33 @@ namespace DeafComposer.Models.Helpers
         {
             return notes.Where(m => m.IsPercussion == false).Select(n => n.SubVoice).Distinct().OrderBy(x => x).ToList();
         }
+        /// <summary>
+        /// Returns the notes that are part of chords
+        /// </summary>
+        /// <param name="notes"></param>
+        /// <returns></returns>
+        public static List<Note> InChords(this List<Note> notes)
+        {
+            return notes.Where(n =>
+            notes.Where(m => m.Id != n.Id && m.StartSinceBeginningOfSongInTicks == n.StartSinceBeginningOfSongInTicks &&
+            m.EndSinceBeginningOfSongInTicks == n.EndSinceBeginningOfSongInTicks).Count() > 2).ToList();
+        }
 
+        /// <summary>
+        /// Returns a dictionary where the key are the subvoices present in notes, and the value is the average pitch of the
+        /// notes of that subvoice
+        /// </summary>
+        /// <param name="notes"></param>
+        /// <returns></returns>
+        public  static Dictionary<int,double> SubVoicesPitchAverage(this List<Note> notes)
+        {
+            var retObj = new Dictionary<int, double>();
+            var subVoices = notes.Select(n => n.SubVoice).Distinct().OrderBy(x => x).ToList();
+            foreach (var sv in subVoices)
+            {
+                retObj[sv] = notes.Where(y => y.SubVoice == sv).Average(z => z.Pitch);
+            }
+            return retObj;
+        }
     }
 }

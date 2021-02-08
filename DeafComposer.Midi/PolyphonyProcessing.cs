@@ -33,8 +33,8 @@ namespace DeafComposer.Midi
                     var notesNotAssignedToSubVoice = voiceNotes.Where(n => n.SubVoice == impossibleValue).ToList();
                     var totalDurationOfNotAssignedNotes = notesNotAssignedToSubVoice.Select(n => n.DurationInTicks).Sum();
                     var averageTotalDurationOfNotesPerVoice = voiceNotes.Where(n => n.SubVoice != impossibleValue).Select(y => y.DurationInTicks).Sum() / (currentSubVoiceNumber + 1);
-                    // We don't want to split a voice in more than 4, so if we have already 4 subvoices, stop
-                    if (currentSubVoiceNumber >= 4 ||
+                    // We don't want to split a voice in more than 3, so if we have already 4 subvoices, stop
+                    if (currentSubVoiceNumber > 2 ||
                         // If there are not many notes left, add them to the last voice added, don't create a new voice
                         notesNotAssignedToSubVoice.Count < 20 || 
                         // if the total playing time of the notes left is less than half of the average of total playing time per voice don't create new voice
@@ -90,23 +90,26 @@ namespace DeafComposer.Midi
             var retObj = notas.Clone().OrderBy(x => x.StartSinceBeginningOfSongInTicks).ThenByDescending(y => y.Pitch).ToList();
             var tolerance = 3;
             var noSubVoices = retObj.NonPercussionSubVoices().Count();
+            Dictionary<int, double> subVoicePitchAverage;
 
             // reassign notes by pitch
             foreach (var n in retObj)
             {
-                var neighboors = retObj.Where(x => StartDifference(x, n) < 300).ToList();
-                var subVoices = neighboors.NonPercussionSubVoices();
-                var subVoicePitchAverage = new double[noSubVoices];
-                foreach (var sv in subVoices)
-                    subVoicePitchAverage[sv] = neighboors.Where(y => y.SubVoice == sv).Average(z => z.Pitch);
-                foreach (var SV in subVoices)
+                // to select neighboor notes, we use a range of +-1000 ticks around the note, but if the note is at the beginnin
+                // of the song, we use a longer range
+                var range = n.StartSinceBeginningOfSongInTicks > 1000 ? 1000 : 2000 - n.StartSinceBeginningOfSongInTicks;
+                var neighboors = retObj.Where(x => StartDifference(x, n) < range).ToList();
+                var neighboorsSubVoices = neighboors.NonPercussionSubVoices();
+                subVoicePitchAverage = neighboors.SubVoicesPitchAverage();
+         
+                foreach (var SV in neighboorsSubVoices)
                 {
                     //if there are no neighboors in this voice, skip
                     if (subVoicePitchAverage[SV] == 0) continue;
 
                     var difInCurrentSubVoice = Math.Abs(n.Pitch - subVoicePitchAverage[n.SubVoice]);
                     var difInVoiceV = Math.Abs(n.Pitch - subVoicePitchAverage[SV]);
-                    if (difInVoiceV + tolerance < difInCurrentSubVoice)
+                    if (difInVoiceV + tolerance < difInCurrentSubVoice && !IsNotePartOfPhraseInSubVoice(n, neighboors))
                         n.SubVoice = SV;
                 }
             }
@@ -114,10 +117,8 @@ namespace DeafComposer.Midi
             // reassign notes when there are chords in an upper voice and holes in a lower voice
             foreach (var n in retObj)
             {
-                if (n.StartSinceBeginningOfSongInTicks == 816)
-                {
-
-                }
+                // if n is in the last subvoice skip it
+                if (n.SubVoice == noSubVoices - 1) continue;
                 var chordNotes = retObj.Where(x => StartDifference(n, x) == 0 && EndDifference(n, x) == 0 && x.SubVoice==n.SubVoice && x.Pitch < n.Pitch).ToList();
                 if (chordNotes.Count == 0) continue;
                 byte nextSubVoice = (byte)(n.SubVoice + 1);
@@ -127,9 +128,70 @@ namespace DeafComposer.Midi
                     var noteToModify = chordNotes.OrderByDescending(x => x.Pitch).ToList()[0];
                     noteToModify.SubVoice = nextSubVoice;
                 }
-
             }
 
+            // reassign phrases
+            // commented out because it was creating subvoices that ditn't make sense
+            // there are cases where a whole phrase could be changed to a different voice that has an average pitch closer to the phrase average pitch
+            // than the subvoice where the phrase currently lives. These cases are not handled by the code above, because before moving a single note
+            // it looks that the note is not part of a phrase. So there are cases where it makes sense to move a whole phrase
+            // look for phrases where the average is closer to the average of another subvoice           
+            //var minConsecutiveNotes = 4;
+            //var subVoices = retObj.SubVoices();
+            //foreach (var sv in subVoices)
+            //{
+            //    var subVoicesAveragePitch = retObj.SubVoicesPitchAverage();
+            //    var subVoiceNotes = retObj.Where(n => n.SubVoice == sv).OrderBy(x => x.StartSinceBeginningOfSongInTicks).ToList();
+            //    var startingNoteIndex = 0;
+            //    while (startingNoteIndex + minConsecutiveNotes < subVoiceNotes.Count())
+            //    {
+            //        var notesUnderConsideration = subVoiceNotes.GetRange(startingNoteIndex, minConsecutiveNotes);
+            //        var timeRange = (notesUnderConsideration.Min(y => y.StartSinceBeginningOfSongInTicks), notesUnderConsideration.Max(x => x.EndSinceBeginningOfSongInTicks));
+            //        var averagePitch = notesUnderConsideration.Average(x => x.Pitch);
+            //        foreach (var sv2 in subVoices)
+            //        {
+            //            if (Math.Abs(averagePitch - subVoicesAveragePitch[sv2]) < Math.Abs(averagePitch - subVoicesAveragePitch[sv]) + tolerance)
+            //            {
+            //                // we found a different subvoice where the average pitch is closer to the average pitch of the notes
+            //                // see if there are no notes in that time range in this other subvoice
+            //                if (!retObj.Where(x => x.SubVoice == sv2 && x.EndSinceBeginningOfSongInTicks > timeRange.Item1 &&
+            //                x.StartSinceBeginningOfSongInTicks < timeRange.Item2).Any())
+            //                {
+            //                    // we found a subvoice with a closer pitch average and no notes during that period of time
+            //                    // see if we can include still more notes besides the 4 original ones
+            //                    var rangeOfNotesToInclude = minConsecutiveNotes;
+            //                    while (true)
+            //                    {
+            //                        // if we reached the end, exit loop
+            //                        if (startingNoteIndex + rangeOfNotesToInclude >= subVoiceNotes.Count - 1) break;
+
+            //                        var nextNote = subVoiceNotes[startingNoteIndex + rangeOfNotesToInclude + 1];
+
+            //                        // check the pitch of the note is closer to sv2 average than sv average
+            //                        if (Math.Abs(nextNote.Pitch - subVoicesAveragePitch[sv]) < Math.Abs(nextNote.Pitch - subVoicesAveragePitch[sv2]) + tolerance)
+            //                            break;
+
+            //                        // check that there is space in sv2 for this note
+            //                        if (retObj.Where(x => x.SubVoice == sv2 &&
+            //                            x.EndSinceBeginningOfSongInTicks > nextNote.StartSinceBeginningOfSongInTicks &&
+            //                            x.StartSinceBeginningOfSongInTicks < nextNote.EndSinceBeginningOfSongInTicks).Any())
+            //                            // we can incluce nextNote in the group of notes to move, increment rangeOfNotesToInclude
+            //                            break;
+            //                        else
+            //                            rangeOfNotesToInclude++;
+            //                    }
+            //                    // at this point we have a range of rangeOfNotesToInclude notes starting at startingNoteIndex
+            //                    // whose average is closer to the average of subvoice sv2 than to the average of sv, and there are
+            //                    // no notes being played in sv2 during that time
+            //                    subVoiceNotes.GetRange(startingNoteIndex, rangeOfNotesToInclude).ForEach(x => x.SubVoice = sv2);
+            //                }
+            //            }
+            //        }
+            //        startingNoteIndex++;
+            //    }
+            //}
+
+            // Fix gaps and overlappings
             foreach (var subVoice in retObj.NonPercussionSubVoices())
             {
                 var subVoiceNotes = retObj.Where(x => x.SubVoice == subVoice).ToList();
@@ -142,6 +204,39 @@ namespace DeafComposer.Midi
             }
 
             return retObj;
+        }
+        /// <summary>
+        /// When we are moving notes between subvoices we have to be careful with musical phrase
+        /// If for example we are going up a scale in sixteenths, maybe one note of the scale should be move to another subvoice if we
+        /// just consider its pitch, but we would leave the scale with a hole. It makes more sense to leave the note there
+        /// This function checks the notes in the subvoice around a note to see if they form a phrase
+        /// </summary>
+        /// <param name="n"></param>
+        /// <param name="notes"></param>
+        /// <returns></returns>
+        private static bool IsNotePartOfPhraseInSubVoice(Note n, List<Note> notes)
+        {
+            var notesInSameSubVoice = notes.Where(m => m.SubVoice == n.SubVoice).OrderBy(x => x.StartSinceBeginningOfSongInTicks).ToList();
+            var numberOfConsecutiveNotesToAnalyze = 4;
+            if (notesInSameSubVoice.Count < numberOfConsecutiveNotesToAnalyze) return false;
+
+            var startingNote = 0;
+
+            while (startingNote + numberOfConsecutiveNotesToAnalyze < notesInSameSubVoice.Count)
+            {
+                var possiblePhrase = notesInSameSubVoice.GetRange(startingNote, numberOfConsecutiveNotesToAnalyze);
+                if (possiblePhrase.Contains(n))
+                {
+                    var averageDuration = possiblePhrase.Average(m => m.DurationInTicks);
+                    if (!possiblePhrase.Where(m => m.DurationInTicks > averageDuration * 1.1 || m.DurationInTicks < averageDuration * 0.9).Any())
+                    {
+                        // if we reached this point we have 4 consecutive notes, where n is one of them, that have aprox the same duration
+                        return true;
+                    }
+                }
+                startingNote++;
+            }
+            return false;
         }
 
         /// <summary>
@@ -186,6 +281,8 @@ namespace DeafComposer.Midi
         /// <returns></returns>
         private static List<Note> GetUpperVoice(List<Note> notes)
         {
+            // whe check how many notes are parts of chords. If they are more than 20% of the total of notes, we assign the notes of the chords to the same voice
+            var shouldMakeChords = notes.InChords().Count > notes.Count / 5;
             var retObj = new List<Note>();
             foreach (var n in notes)
             {
@@ -193,24 +290,26 @@ namespace DeafComposer.Midi
                 if (retObj.Where(x => x.Id == n.Id).Count() > 0) continue;
 
                 // Get notes playing at the same time as this one, that don't start and end together
-                // If the notes are played together less than 1/4 of the duration shortest note, then we consider that they don't overlap
+                // If the notes are played together less than 1/2 of the duration shortest note, then we consider that they don't overlap
                 var simulNotes = notes.Where(m =>
                 m.Id != n.Id &&
-                GetIntersectionOfNotesInTicks(m, n) >= Math.Min(m.DurationInTicks, n.DurationInTicks) / 3 &&
-                !DoNotesStartAndEndTogether(m, n))
+                GetIntersectionOfNotesInTicks(m, n) >= Math.Min(m.DurationInTicks, n.DurationInTicks) / 2 )
                 .ToList();
                 // If there are no notes simulaneous to this with a higher pitch, then add it to the upper voice
                 if (simulNotes.Where(m => m.Pitch > n.Pitch).ToList().Count == 0)
                 {
                     retObj.Add(n);
 
-                    // add also notes that start and end both at the same time
-                    var chordNotes = notes.Where(m => m.Id != n.Id && DoNotesStartAndEndTogether(m, n)).ToList();
-                    foreach (var chordNote in chordNotes)
+                    if (shouldMakeChords)
                     {
-                        // If it was not already added to retObj, add it
-                        if (retObj.Where(x => x.Id == chordNote.Id).Count() == 0)
-                            retObj.Add(chordNote);
+                        // add also notes that start and end both at the same time
+                        var chordNotes = notes.Where(m => m.Id != n.Id && DoNotesStartAndEndTogether(m, n)).ToList();
+                        foreach (var chordNote in chordNotes)
+                        {
+                            // If it was not already added to retObj, add it
+                            if (retObj.Where(x => x.Id == chordNote.Id).Count() == 0)
+                                retObj.Add(chordNote);
+                        }
                     }
                 }
             }
