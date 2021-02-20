@@ -17,7 +17,7 @@ namespace DeafComposer.Persistence
             string contains = null,
             long? styleId = null,
             long? bandId = null);
-        Task<Song> GetSongByIdAsync(long songId);
+        Task<Song> GetSongByIdAsync(long songId, int? simplificationVersion = null);
         Task<Song> GetSongByNameAndBandAsync(string songName, string bandName);
         Task<Song> UpdateSongAsync(Song song);
         Task<Song> AddSongAsync(Song song);

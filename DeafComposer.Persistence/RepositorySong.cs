@@ -12,7 +12,7 @@ namespace DeafComposer.Persistence
 {
     partial class Repository
     {
-        public async Task<Song> GetSongByIdAsync(long songId)
+        public async Task<Song> GetSongByIdAsync(long songId, int? simplificationVersion = null)
         {
             var retObj = await dbContext.Songs
                 .Include(x => x.Style)
@@ -31,12 +31,19 @@ namespace DeafComposer.Persistence
 
             retObj.SongSimplifications = new List<SongSimplification>();
             var i = 0;
-            while (true)
+            if (simplificationVersion != null)
             {
-                var simpl = await GetSongSimplificationBySongIdAndVersionAsync(songId, i);
-                if (simpl == null) break;
-                retObj.SongSimplifications.Add(simpl);
-                i++;
+                retObj.SongSimplifications.Add(await GetSongSimplificationBySongIdAndVersionAsync(songId, (int)simplificationVersion));
+            }
+            else
+            {
+                while (true)
+                {
+                    var simpl = await GetSongSimplificationBySongIdAndVersionAsync(songId, i);
+                    if (simpl == null) break;
+                    retObj.SongSimplifications.Add(simpl);
+                    i++;
+                }
             }
 
             return retObj;

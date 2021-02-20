@@ -52,16 +52,41 @@ namespace DeafComposer.Controllers
 
         // GET: api/Song/5
         [HttpGet("{songId}")]
-        public async Task<IActionResult> GetSong(int songId, int simplificationVersion)
+        public async Task<IActionResult> GetSong(int songId, int? simplificationVersion)
         {
-            Song song =  await Repository.GetSongByIdAsync(songId);
+            Song song =  await Repository.GetSongByIdAsync(songId, simplificationVersion);
             if (song == null)
                 return NotFound(new ApiResponse(404));
 
             song.MidiBase64Encoded = null;
-    
+
+           // AddeDrumVoiceWithAllPitches(song);
 
             return Ok(new ApiOKResponse(song));
+        }
+        private void AddeDrumVoiceWithAllPitches(Song song)
+        {
+            var newVoice = new List<Note>();
+
+            var newVoiceNo = song.SongSimplifications[1].NumberOfVoices;
+            song.SongSimplifications[1].NumberOfVoices = newVoiceNo+1;
+
+            for (byte i =35; i<80; i++)
+            {
+                var note = new Note
+                {
+                    StartSinceBeginningOfSongInTicks = 96 * (i-35),
+                    EndSinceBeginningOfSongInTicks = 96 * (i -34),
+                    Pitch = i,
+                    Voice = (byte)newVoiceNo,
+                    Volume = 100,
+                    IsPercussion = true,
+                    Instrument = 0,
+                    Id = 1234567 + i
+
+                };
+                song.SongSimplifications[1].Notes.Add(note);
+            }
         }
 
         [HttpGet("{songId}/midi")]

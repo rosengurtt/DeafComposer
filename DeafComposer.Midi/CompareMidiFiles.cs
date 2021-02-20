@@ -7,6 +7,7 @@ using System.Text;
 
 namespace DeafComposer.Midi
 {
+    /// Methods used to investigate problems
     public static partial class MidiUtilities
     {
         public static MidiFileDifferences CompareMidiFiles(string file1Encoded, string file2Encoded)

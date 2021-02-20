@@ -10,15 +10,12 @@ namespace DeafComposer.Midi
     public static partial class MidiUtilities
     {
         /// <summary>
-
-        public static string GetMidiBytesFromTickBase64Encoded(string base64EncodedMidi, long tick)
-        {    
-            return Convert.ToBase64String(GetMidiBytesFromTick(base64EncodedMidi, tick));
-        }
-
         /// Given a midi file of a song, it returns a midi file with all the notes that
         /// come after a certain tick. In this way we can play a midi file starting
         /// from any arbitrary point in time
+        /// 
+        /// It works by removing all note events prior to the tick, and setting to 0 the deltatime
+        /// of all non note events prior to tick
         /// </summary>
         public static byte[] GetMidiBytesFromTick(string base64EncodedMidi, long tick)
         {

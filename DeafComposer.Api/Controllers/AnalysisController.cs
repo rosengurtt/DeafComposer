@@ -34,7 +34,7 @@ namespace DeafComposer.Api.Controllers
         {
             if (!await Repository.HavePatternsOfSongBeenFound(songId))
             {
-                var songita = await Repository.GetSongByIdAsync(songId);
+                var songita = await Repository.GetSongByIdAsync(songId, simplificationVersion);
                 var simpl = await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simplificationVersion);
 
                 ProcessPatternsOfType(songita, simpl, ArtifactType.PitchPattern);
