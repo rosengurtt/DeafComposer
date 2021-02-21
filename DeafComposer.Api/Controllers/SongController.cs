@@ -14,6 +14,7 @@ using System.IO;
 using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Linq;
+using Melanchall.DryWetMidi.Core;
 
 namespace DeafComposer.Controllers
 {
@@ -90,7 +91,7 @@ namespace DeafComposer.Controllers
         }
 
         [HttpGet("{songId}/midi")]
-        public async Task<IActionResult> GetSongMidi(int songId, int tempoInBeatsPerMinute, int simplificationVersion, int startInSeconds = 0, string mutedTracks = null)
+        public async Task<IActionResult> GetSongMidi(int songId, int tempoInBeatsPerMinute, int simplificationVersion = 1, int startInSeconds = 0, string mutedTracks = null)
         {
             try
             {
@@ -99,7 +100,7 @@ namespace DeafComposer.Controllers
                     return null;
                 int[] tracksToMute = mutedTracks?.Split(',').Select(x => int.Parse(x)).ToArray();
 
-                song.SongSimplifications = new List<SongSimplification>();
+                
                 var tempoInMicrosecondsPerBeat = 120 * 500000 / tempoInBeatsPerMinute;
                 // If the tempoInBeatsPerMinute parameter is passed, we recalculate all the tempo changes. The tempo change shown to the
                 // user in the UI is the first one, so if the user changes it, we get the proportion of the new tempo to the old one and
@@ -112,20 +113,9 @@ namespace DeafComposer.Controllers
                     MicrosecondsPerQuarterNote = (int)Math.Round((double)x.MicrosecondsPerQuarterNote * tempoInMicrosecondsPerBeat / song.TempoChanges[0].MicrosecondsPerQuarterNote)
                 }).ToList() :
                 song.TempoChanges;
-                song.SongSimplifications.Add(
-                    await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simplificationVersion, false, tracksToMute));
-                var base64encodedMidiBytes = MidiUtilities.GetMidiBytesFromNotes(song.SongSimplifications[0].Notes, tempoChanges);
-
+                var songSimplification= await Repository.GetSongSimplificationBySongIdAndVersionAsync(songId, simplificationVersion, false, tracksToMute);
+                var base64encodedMidiBytes = MidiUtilities.GetMidiBytesFromNotes(songSimplification.Notes, tempoChanges);
                 var ms = new MemoryStream(MidiUtilities.GetMidiBytesFromPointInTime(base64encodedMidiBytes, startInSeconds));
-
-                //var ms2 = new MemoryStream(MidiUtilities.GetMidiBytesFromPointInTime(song.MidiBase64Encoded, startInSeconds));
-                //using (FileStream file = new FileStream(@"c:\music\sorete.mid", FileMode.Create, System.IO.FileAccess.Write))
-                //{
-                //    var bytes = new byte[ms2.Length];
-                //    ms2.Read(bytes, 0, (int)ms.Length);
-                //    file.Write(bytes, 0, bytes.Length);
-                //    ms2.Close();
-                //}
 
                 return File(ms, MediaTypeNames.Text.Plain, song.Name);
             }

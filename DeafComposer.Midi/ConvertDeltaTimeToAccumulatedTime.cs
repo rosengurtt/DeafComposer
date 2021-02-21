@@ -22,7 +22,8 @@ namespace DeafComposer.Midi
         {
             foreach (TrackChunk chunk in midiFile.Chunks)
             {
-                chunk.Events._events = ConvertDeltaTimeToAccumulatedTime(chunk.Events._events);
+                var deltaAccumulated = ConvertDeltaTimeToAccumulatedTime(chunk.Events._events);
+                chunk.Events._events = deltaAccumulated;
             }
             return midiFile;
         }

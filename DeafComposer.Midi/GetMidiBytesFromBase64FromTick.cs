@@ -52,5 +52,11 @@ namespace DeafComposer.Midi
             var tick = GetTickForPointInTime(base64EncodedMidi, secondsFromBeginningOfSong);
             return GetMidiBytesFromTick(base64EncodedMidi, tick);
         }
+        public static byte[] GetMidiBytesFromPointInTime(MidiFile midiFile, int secondsFromBeginningOfSong)
+        {
+            var base64EncodedMidi = Base64EncodeMidiFile(midiFile);
+            var tick = GetTickForPointInTime(base64EncodedMidi, secondsFromBeginningOfSong);
+            return GetMidiBytesFromTick(base64EncodedMidi, tick);
+        }
     }
 }

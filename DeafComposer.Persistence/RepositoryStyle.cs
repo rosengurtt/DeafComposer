@@ -42,7 +42,7 @@ namespace DeafComposer.Persistence
         }
         public async Task<Style> GetStyleByNameAsync(string name)
         {
-            return await dbContext.Styles.Where(s => s.Name == name).FirstOrDefaultAsync();
+            return await dbContext.Styles.Where(s => s.Name.ToLower() == name.ToLower()).FirstOrDefaultAsync();
         }
         public async Task<Style> AddStyleAsync(Style style)
         {

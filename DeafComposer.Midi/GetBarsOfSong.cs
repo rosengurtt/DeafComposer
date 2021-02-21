@@ -185,14 +185,14 @@ namespace DeafComposer.Midi
         {
             // totalUseOfPitch is a value that takes in consideration the times a pitch is used, the volume and the duration of
             // time it is played. We calculate it for each pitch
-            var totalUseOfPitch = new int[12];
+            var totalUseOfPitch = new long[12];
             var firstRoot = GetTonicOfFirstAndLastChords(notes, "first");
             var lastRoot = GetTonicOfFirstAndLastChords(notes, "last");
 
             // when several notes are played at the same timethe higher notes and the lower notes are heard more than middle notes
             // the percentage of time a pitch is the highest (or the lowest) pitch heard gives information about its importance
-            var timePitchIsHighestNote = new int[12];
-            var timePitchIsLowestNote = new int[12];
+            var timePitchIsHighestNote = new long[12];
+            var timePitchIsLowestNote = new long[12];
             var probability = new double[12];
             for (var i = 0; i < 12; i++)
             {
@@ -202,9 +202,9 @@ namespace DeafComposer.Midi
                 timePitchIsLowestNote[i] = GetHighestOrLowestPitchesOfNotes(notes, "low")
                     .Where(x => x.Pitch % 12 == i).Select(y => y.Volume * y.DurationInTicks).Sum();
             }
-            var totalUseForAllNotes = totalUseOfPitch.Sum();
-            var totalPitchIsHighesttNote = timePitchIsHighestNote.Sum();
-            var totalPitchIsLowestNote = timePitchIsLowestNote.Sum();
+            long totalUseForAllNotes = totalUseOfPitch.Sum();
+            long totalPitchIsHighesttNote = timePitchIsHighestNote.Sum();
+            long totalPitchIsLowestNote = timePitchIsLowestNote.Sum();
 
             for (var i = 0; i < 12; i++)
             {

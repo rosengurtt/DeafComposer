@@ -1,5 +1,6 @@
 ﻿using Melanchall.DryWetMidi.Core;
 using System;
+using System.IO;
 
 namespace DeafComposer.Midi
 {
@@ -22,6 +23,7 @@ namespace DeafComposer.Midi
             }
             midiFile = ConvertAccumulatedTimeToDeltaTime(midiFile);
             midiFile.TimeDivision = new TicksPerQuarterNoteTimeDivision(standardTicksPerQuarterNote);
+
             return Base64EncodeMidiFile(midiFile);
         }
     }

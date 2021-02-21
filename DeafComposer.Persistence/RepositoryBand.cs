@@ -50,7 +50,7 @@ namespace DeafComposer.Persistence
         }
         public async Task<Band> GetBandByNameAsync(string name)
         {
-            return await dbContext.Bands.Where(b => b.Name == name).FirstOrDefaultAsync();
+            return await dbContext.Bands.Where(b => b.Name.ToLower() == name.ToLower()).FirstOrDefaultAsync();
         }
         public async Task<Band> AddBandAsync(Band band)
         {

@@ -50,7 +50,7 @@ namespace DeafComposer.Persistence
         }
         public async Task<Song> GetSongByNameAndBandAsync(string songName, string bandName)
         {
-            return await dbContext.Songs.FirstOrDefaultAsync(x => x.Name == songName & x.Band.Name == bandName);
+            return await dbContext.Songs.FirstOrDefaultAsync(x => x.Name.ToLower() == songName.ToLower() & x.Band.Name.ToLower() == bandName.ToLower());
         }
 
         public async Task<List<Song>> GetSongsAsync(

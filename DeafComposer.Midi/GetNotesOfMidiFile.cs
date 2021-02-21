@@ -9,10 +9,40 @@ namespace DeafComposer.Midi
 {
     public static partial class MidiUtilities
     {
+
+        private static List<(long, byte, byte)> GetNoteOns(MidiFile file)
+        {
+            var retObj = new List<(long, byte, byte)>();
+            var chunkito = -1;
+            foreach (TrackChunk chunk in file.Chunks)
+            {
+                long currentTick = 0;
+                byte instrument = 0;
+                chunkito++;
+
+
+                foreach (MidiEvent eventito in chunk.Events)
+                {
+                    currentTick += eventito.DeltaTime;
+                    if (eventito is ProgramChangeEvent)
+                    {
+                        var pg = eventito as ProgramChangeEvent;
+                        instrument = (byte)pg.ProgramNumber.valor;
+                    }
+                    if (eventito is NoteOnEvent)
+                    {
+                        NoteOnEvent noteOnEvent = eventito as NoteOnEvent;
+                        retObj.Add((currentTick, instrument, noteOnEvent.NoteNumber));
+                    }
+                }
+            }
+            return retObj;
+        }
         public static List<Note> GetNotesOfMidiFile(string base64encodedMidiFile)
         {
             var notesObj = new List<Note>();
             var midiFile = MidiFile.Read(base64encodedMidiFile);
+            var soret = GetNoteOns(midiFile);
             long songDuration = GetSongDurationInTicks(base64encodedMidiFile);
             var isSustainPedalOn = false;
             var notesOnBecauseOfSustainPedal = new List<Note>();

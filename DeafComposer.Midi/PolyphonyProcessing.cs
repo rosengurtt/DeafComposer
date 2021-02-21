@@ -14,7 +14,7 @@ namespace DeafComposer.Midi
             var retObj = new List<Note>();
             var notesCopy = notes.Clone();
             // in voicesNotes we have the original notes separated by voice
-            var voices = notesCopy.Select(n => n.Voice).Distinct().OrderBy(v => v);
+            var voices = notesCopy.Select(n => n.Voice).Distinct().OrderBy(v => v).ToList();
 
             foreach (byte v in voices)
             {
@@ -24,8 +24,9 @@ namespace DeafComposer.Midi
                 voiceNotes.ForEach(n => n.SubVoice = impossibleValue);
 
                 byte currentSubVoiceNumber = 0;
+                var jobCompleted = false;
                 // we keep looping while there are notes not assigned to a subVoice
-                while (voiceNotes.Where(x => x.SubVoice == impossibleValue).Any())
+                while (!jobCompleted)
                 {
                     var notesNotAssignedToSubVoice = voiceNotes.Where(n => n.SubVoice == impossibleValue).ToList();
                     var totalDurationOfNotAssignedNotes = notesNotAssignedToSubVoice.Select(n => n.DurationInTicks).Sum();
@@ -52,6 +53,7 @@ namespace DeafComposer.Midi
                         }
                         var voiceNotesFixed = FixMissplacedNotes(voiceNotes);
                         retObj = retObj.Concat(voiceNotesFixed).ToList();
+                        jobCompleted = true;
                         break;
                     }
 
