@@ -39,9 +39,15 @@ namespace DeafComposer.Persistence
             {
                 while (true)
                 {
-                    var simpl = await GetSongSimplificationBySongIdAndVersionAsync(songId, i);
-                    if (simpl == null) break;
-                    retObj.SongSimplifications.Add(simpl);
+                    // we are not interested in simplification 0 (we add it as a null, so  simplification 1 is in SongSimplifications[1])
+                    if (i == 0)
+                        retObj.SongSimplifications.Add(null);
+                    else
+                    {
+                        var simpl = await GetSongSimplificationBySongIdAndVersionAsync(songId, i);
+                        if (simpl == null) break;
+                        retObj.SongSimplifications.Add(simpl);
+                    }
                     i++;
                 }
             }

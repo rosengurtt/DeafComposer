@@ -36,7 +36,15 @@ namespace DeafComposer.Midi
                 Numerator = 4,
                 Denominator = 4
             };
-            var currentKeySignature = GetKeySignatureOfSong(songSimplification.Notes);
+            KeySignature currentKeySignature;
+            if (keySignatureEvents.Count > 0)
+                currentKeySignature = new KeySignature
+                {
+                    key = ((KeySignatureEvent)keySignatureEvents[0]).Key,
+                    scale = (ScaleType)((KeySignatureEvent)keySignatureEvents[0]).Scale
+                };
+            else
+                currentKeySignature = GetKeySignatureOfSong(songSimplification.Notes);
             // create variable to hold the tempo at the place we are analyzing, initialize with default
             int currentTempo = 500000;
 

@@ -110,7 +110,7 @@ namespace DeafComposer.Api.Controllers
                 {
                     var timeSigBar = await Repository.GetTimeSignatureAsync(bar.TimeSignature);
                     bar.TimeSignatureId = timeSigBar.Id;
-                    bar.TimeSignature = timeSig;
+                    bar.TimeSignature = timeSigBar;
 
                     var keySigBar = await Repository.GetKeySignatureAsync(bar.KeySignature);
                     bar.KeySignatureId = keySigBar.Id;

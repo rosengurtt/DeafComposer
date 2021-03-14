@@ -91,6 +91,15 @@ values (21, 12, 4)
 
 insert into TimeSignatures(Id, Numerator, Denominator)
 values (22, 8, 4)
+
+insert into TimeSignatures(Id, Numerator, Denominator)
+values (23, 1, 4)
+
+insert into TimeSignatures(Id, Numerator, Denominator)
+values (24, 2, 8)
+
+insert into TimeSignatures(Id, Numerator, Denominator)
+values (25, 5, 8)
 SET IDENTITY_INSERT TimeSignatures OFF
 
 
