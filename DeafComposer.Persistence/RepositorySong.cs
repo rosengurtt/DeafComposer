@@ -30,13 +30,15 @@ namespace DeafComposer.Persistence
             retObj.TempoChanges = retObj.TempoChanges.OrderBy(x => x.TicksSinceBeginningOfSong).ToList();
 
             retObj.SongSimplifications = new List<SongSimplification>();
-            var i = 0;
             if (simplificationVersion != null)
             {
+                // we want that simplification n is accessible using SongSimplifications[n], so we insert n empty simplifications first
+                for (var i = 0; i < simplificationVersion; i++) retObj.SongSimplifications.Add(null);
                 retObj.SongSimplifications.Add(await GetSongSimplificationBySongIdAndVersionAsync(songId, (int)simplificationVersion));
             }
             else
             {
+                var i = 0;
                 while (true)
                 {
                     // we are not interested in simplification 0 (we add it as a null, so  simplification 1 is in SongSimplifications[1])

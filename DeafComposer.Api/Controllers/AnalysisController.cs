@@ -1,4 +1,5 @@
 ﻿using DeafComposer.Analysis.Artifacts;
+using DeafComposer.Analysis.Patterns;
 using DeafComposer.Analysis.Simplification;
 using DeafComposer.Api.ErrorHandling;
 using DeafComposer.Api.Helpers;
@@ -9,6 +10,7 @@ using DeafComposer.Persistence;
 using Melanchall.DryWetMidi.Core;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
+using Neo4j.Driver;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -24,13 +26,27 @@ namespace DeafComposer.Api.Controllers
     public class AnalysisController: ControllerBase
     {
         private IRepository Repository;
-        public AnalysisController(IRepository Repository)
+        private IDriver Driver;
+        public AnalysisController(IRepository Repository, IDriver Driver)
         {
             this.Repository = Repository;
+            this.Driver = Driver;
         }
+
+
+        [HttpGet]
+        [Route("patterns")]
+        public async Task<ActionResult> ProcessPatterns(int songId)
+        {
+            var songita = await Repository.GetSongByIdAsync(songId, 1);
+           
+            await MelodyPattern.GetPatterns(songita, Driver);
+            return null;
+        }
+
         [HttpGet]
         [Route("pattern")]
-        public async Task<ActionResult> ProcessPatterns(int songId, int simplificationVersion)
+        public async Task<ActionResult> ProcessPatternsOld(int songId, int simplificationVersion)
         {
             if (!await Repository.HavePatternsOfSongBeenFound(songId))
             {

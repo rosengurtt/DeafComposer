@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Neo4j.Driver;
 
 namespace DeafComposer.Api
 {
@@ -59,6 +60,12 @@ namespace DeafComposer.Api
             services.AddControllers();
 
             services.AddTransient<IRepository, Repository>();
+
+            var neo4jUrl = Configuration.GetSection("neo4j:url").Value;
+           var neo4jUsername = Configuration.GetSection("neo4j:username").Value;
+            var neo4jPassword = Configuration.GetSection("neo4j:password").Value;
+            var driver = GraphDatabase.Driver(neo4jUrl, AuthTokens.Basic(neo4jUsername, neo4jPassword));
+            services.AddSingleton<IDriver>(driver);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
