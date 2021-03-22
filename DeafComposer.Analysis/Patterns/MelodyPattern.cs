@@ -23,10 +23,10 @@ namespace DeafComposer.Analysis.Patterns
             IAsyncSession session = driver.AsyncSession(o => o.WithDatabase("neo4j"));
             var voices = song.SongSimplifications[simplification].Notes.NonPercussionVoices();
 
+            var songSimplificationId = await AddSongSimplificationNode(session, song, 1);
+
             foreach (var voice in voices)
             {
-                var patternFinderId = $"{song.Id}_{simplification}_{voice}";
-                var id = await AddPatternFinderNode(session, song, voice, 1);
                 foreach (var bar in song.Bars)
                 {
                     for (var i = 0; i < bar.TimeSignature.Numerator; i++)
@@ -34,8 +34,8 @@ namespace DeafComposer.Analysis.Patterns
                         var beatTicks = 96 * 4 / bar.TimeSignature.Denominator;
                         var startTick = bar.TicksFromBeginningOfSong + i * beatTicks;
                         var endTick = startTick + beatTicks;
-                        var chain = GetGraphForTicksInterval(patternFinderId, startTick, endTick, song, voice);
-                        await AddChain(session, chain, id);
+                        var chain = GetGraphDataForTicksInterval(startTick, endTick, song, voice);
+                        await AddChain(session, chain, songSimplificationId, voice, startTick);
                     }
                 }
             }
@@ -55,7 +55,7 @@ namespace DeafComposer.Analysis.Patterns
         /// <param name="voice"></param>
         /// <param name="simplification"></param>
         /// <returns></returns>
-        private static noteNode GetGraphForTicksInterval(string patternFinderId, long startTick, long endTick, Song song, int voice, int simplification = 1)
+        private static noteNode GetGraphDataForTicksInterval(long startTick, long endTick, Song song, int voice, int simplification = 1)
         {           
             if (song.SongStats.NumberOfTicks < startTick) return null;
             var notes = song.SongSimplifications[simplification].Notes
@@ -73,7 +73,6 @@ namespace DeafComposer.Analysis.Patterns
                 {
                     currentNode = new noteNode
                     {
-                        PatternFinderId = patternFinderId,
                         RelativePitch = 0,
                         TicksFromStart = (int)(notes[i].StartSinceBeginningOfSongInTicks - startTick),
                         PlaysWith = new List<noteNode>()
@@ -101,14 +100,12 @@ namespace DeafComposer.Analysis.Patterns
                 {
                     var nextNode = new noteNode
                     {
-                        PatternFinderId = patternFinderId,
                         RelativePitch = ConvertFromSemitonesToScaleSteps(notes[i + j + 1].Pitch - notes[0].Pitch),
                         TicksFromStart = (int)(notes[i + j + 1].StartSinceBeginningOfSongInTicks - startTick),
                         PlaysWith = new List<noteNode>()
                     };
                     var edgi = new edge
                     {
-                        PatternFinderId = patternFinderId,
                         DeltaPitch = ConvertFromSemitonesToScaleSteps(notes[i + j + 1].Pitch - notes[i].Pitch),
                         DeltaTicks = notes[i + j + 1].StartSinceBeginningOfSongInTicks - notes[i].StartSinceBeginningOfSongInTicks,
                         NextNote = nextNode
@@ -122,20 +119,18 @@ namespace DeafComposer.Analysis.Patterns
             currentNode.Edge = null;
             return startNode;
         }
-        private async static Task<long> AddPatternFinderNode(IAsyncSession session, Song song, int voice, int qtyBeats, int simplification = 1)
+        private async static Task<long> AddSongSimplificationNode(IAsyncSession session, Song song, int simplification = 1)
         {
             long IdToReturn = 0;
             try
             {
-                var id = $"{song.Id}_{simplification}_{voice}";
+                var id = $"{song.Id}_{simplification}";
                 var command = @$"
-                    CREATE (p:PatternFinder {{
-                    PatternFinderId: '{id}', 
+                    CREATE (ss:SongSimplification {{
                     SongId: {song.Id},
-                    Simplification: {simplification}, 
-                    Voice: {voice}, 
-                    QtyBeats: {qtyBeats}}})
-                    RETURN p";
+                    Name: '{song.Name}',
+                    Simplification: {simplification}}})
+                    RETURN ss";
                 IResultCursor cursor = await session.RunAsync(command);
                 if (await cursor.FetchAsync())
                 {
@@ -152,7 +147,7 @@ namespace DeafComposer.Analysis.Patterns
             }
             return 0;
         }
-        private async static Task AddChain(IAsyncSession session, noteNode n1, long patternFinderId)
+        private async static Task AddChain(IAsyncSession session, noteNode n1, long songSimplificationId, int voice, long tick)
         {
             try
             {                
@@ -162,7 +157,7 @@ namespace DeafComposer.Analysis.Patterns
                 while (currentNode != null)
                 {
                     findChainCommand += isFirstNode? 
-                        @$"(n:Note {{TicksFromStart: {currentNode.TicksFromStart}}})": 
+                        @$"(ss)-[e]->(p:Pattern)-[:ConsistsOf]->(:Note {{TicksFromStart: {currentNode.TicksFromStart}}})": 
                         @$"(:Note {{TicksFromStart: {currentNode.TicksFromStart}}})";
                     var nextNode = currentNode.Edge?.NextNote;
                     if (nextNode != null)
@@ -172,28 +167,27 @@ namespace DeafComposer.Analysis.Patterns
                     currentNode = currentNode.Edge != null ? currentNode.Edge.NextNote : null;
                     isFirstNode = false;
                 }
-                var cursor = await session.RunAsync($"MATCH {findChainCommand} RETURN n");
+                var cursor = await session.RunAsync($"MATCH {findChainCommand} WHERE ID(ss) = {songSimplificationId} RETURN p");
                 if (await cursor.FetchAsync())
                 {
-                    // The pattern already exists, increment the Quantity property in the first node
-                    var startNode = cursor.Current.Values.FirstOrDefault().Value as INode;
-                    long quant = (long)(startNode.Properties["Quantity"] as long?) + 1;
-                    long nodeId = startNode.Id;
+                    var patternNode = cursor.Current.Values.FirstOrDefault().Value as INode;
+
                     await cursor.ConsumeAsync();
-                    var updateCommand = @$"MATCH (n)
-                                           WHERE ID(n) = {nodeId}
-                                           SET n.Quantity = {quant}";
+                    var updateCommand = @$"MATCH (p)
+                                           WHERE ID(p) = {patternNode.Id}
+                                           MATCH (ss)
+                                           WHERE ID(ss) = {songSimplificationId}
+                                           CREATE (ss)-[:HasPattern {{Voice: {voice}, Tick: {tick}}}]->(p)";
                     cursor = await session.RunAsync(updateCommand);
                     await cursor.ConsumeAsync();
                 }
                 else
                 {
-                    findChainCommand = findChainCommand.Replace("(n:Note {", "(n: Note {Quantity:1, ");
-                     var createCommand = @$"
-                                            MATCH (p)
-                                            WHERE ID(p) = {patternFinderId}
-                                            WITH p
-                                            MERGE (p)-[:ImplementedBy]->{findChainCommand}";
+                    findChainCommand = findChainCommand.Replace("-[e]->", $"-[:HasPattern {{Voice: {voice}, Tick: {tick}}}]->");
+                     var createCommand = @$"MATCH (ss)
+                                            WHERE ID(ss) = {songSimplificationId}
+                                            WITH ss
+                                            MERGE {findChainCommand} ";
                     cursor = await session.RunAsync(createCommand);
                     await cursor.ConsumeAsync();
                 }
