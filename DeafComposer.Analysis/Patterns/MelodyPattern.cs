@@ -150,24 +150,34 @@ namespace DeafComposer.Analysis.Patterns
         private async static Task AddChain(IAsyncSession session, noteNode n1, long songSimplificationId, int voice, long tick)
         {
             try
-            {                
+            {
                 var currentNode = n1;
                 string findChainCommand = "";
+                string insertCommand = @$"MATCH (ss)
+                                            WHERE ID(ss) = {songSimplificationId}
+                                            WITH ss
+                                            MERGE ";
                 var isFirstNode = true;
                 while (currentNode != null)
                 {
-                    findChainCommand += isFirstNode? 
-                        @$"(ss)-[e]->(p:Pattern)-[:ConsistsOf]->(:Note {{TicksFromStart: {currentNode.TicksFromStart}}})": 
+                    findChainCommand += isFirstNode ?
+                        @$"(ss)-[e]->(p:Pattern)-[:ConsistsOf]->(:Note {{TicksFromStart: {currentNode.TicksFromStart}}})" :
+                        @$"(:Note {{TicksFromStart: {currentNode.TicksFromStart}}})";
+                    insertCommand += isFirstNode ?
+                          @$"(ss)-[:HasPattern {{Voice: {voice}, Tick: {tick}}}]->(p:Pattern)-[:ConsistsOf]->(:Note {{TicksFromStart: {currentNode.TicksFromStart}}})" :
                         @$"(:Note {{TicksFromStart: {currentNode.TicksFromStart}}})";
                     var nextNode = currentNode.Edge?.NextNote;
                     if (nextNode != null)
                     {
+
                         findChainCommand += $@"-[:MovesTo {{DeltaTicks:{currentNode.Edge.DeltaTicks}, DeltaPitch: '{currentNode.Edge.DeltaPitch.ToString()}'}}]->";
+                        insertCommand += $@"-[:MovesTo {{DeltaTicks:{currentNode.Edge.DeltaTicks}, DeltaPitch: '{currentNode.Edge.DeltaPitch.ToString()}'}}]->";
                     }
                     currentNode = currentNode.Edge != null ? currentNode.Edge.NextNote : null;
                     isFirstNode = false;
                 }
-                var cursor = await session.RunAsync($"MATCH {findChainCommand} WHERE ID(ss) = {songSimplificationId} RETURN p");
+                findChainCommand = $"MATCH {findChainCommand} WHERE ID(ss) = {songSimplificationId} RETURN p";
+                var cursor = await session.RunAsync(findChainCommand);
                 if (await cursor.FetchAsync())
                 {
                     var patternNode = cursor.Current.Values.FirstOrDefault().Value as INode;
@@ -183,12 +193,7 @@ namespace DeafComposer.Analysis.Patterns
                 }
                 else
                 {
-                    findChainCommand = findChainCommand.Replace("-[e]->", $"-[:HasPattern {{Voice: {voice}, Tick: {tick}}}]->");
-                     var createCommand = @$"MATCH (ss)
-                                            WHERE ID(ss) = {songSimplificationId}
-                                            WITH ss
-                                            MERGE {findChainCommand} ";
-                    cursor = await session.RunAsync(createCommand);
+                    cursor = await session.RunAsync(insertCommand);
                     await cursor.ConsumeAsync();
                 }
             }
@@ -285,39 +290,39 @@ namespace DeafComposer.Analysis.Patterns
         }
         public enum Interval
         {
-            unison = 0,
-            secUp = 2,
-            thirdUp = 3,
+            unison,
+            secUp,
+            thirdUp,
             tritoneUp,
-            fourthUp = 4,
-            fifthUp = 5,
-            sixthUp = 6,
-            sevUp = 7,
-            octUp = 8,
-            ninthUp = 9,
-            third2Up = 10,
-            elevenUp = 11,
+            fourthUp,
+            fifthUp,
+            sixthUp,
+            sevUp,
+            octUp,
+            ninthUp,
+            third2Up,
+            elevenUp,
             tritone2Up,
-            quinta2Up = 12,
-            treceavaUp = 13,
-            sev2Up = 14,
-            oct2Up = 15,
-            secDown = -2,
-            thirdDown = -3,
+            quinta2Up,
+            treceavaUp,
+            sev2Up,
+            oct2Up,
+            secDown,
+            thirdDown,
             tritoneDown,
-            fourthDown = -4,
-            fifthDown =- 5,
-            sixthDown = -6,
-            sevDown = -7,
-            octDown = -8,
-            ninthDown = -9,
-            third2Down = -10,
-            elevenDown = -11,
+            fourthDown,
+            fifthDown,
+            sixthDown,
+            sevDown,
+            octDown,
+            ninthDown,
+            third2Down,
+            elevenDown,
             tritone2Down,
-            fifth2Down = -12,
-            treceavaDown = -13,
-            sev2Down = -14,
-            oct2Down = -15,
+            fifth2Down,
+            treceavaDown,
+            sev2Down,
+            oct2Down,
             other
         }
 
