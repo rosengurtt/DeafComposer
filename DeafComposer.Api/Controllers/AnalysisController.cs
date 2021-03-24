@@ -40,8 +40,8 @@ namespace DeafComposer.Api.Controllers
         {
             var songita = await Repository.GetSongByIdAsync(songId, 1);
            
-            await MelodyPattern.GetPatterns(songita, Driver);
-            return null;
+            await MelodyPattern.Get1beatPatternsOfSongSimplification(songita, Driver);
+            return Ok(new ApiOKResponse("Patterns created"));
         }
 
         [HttpGet]

@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using DeafComposer.Models.Helpers;
 using Serilog;
+using DeafComposer.Models.Graphs;
 
 namespace DeafComposer.Analysis.Patterns
 {
@@ -18,7 +19,7 @@ namespace DeafComposer.Analysis.Patterns
         /// </summary>
         /// <param name="song"></param>
         /// <returns></returns>
-        public static async Task<List<List<(int, int)>>> GetPatterns(Song song, IDriver driver, int simplification = 1)
+        public static async Task Get1beatPatternsOfSongSimplification(Song song, IDriver driver, int simplification = 1)
         {
             IAsyncSession session = driver.AsyncSession(o => o.WithDatabase("neo4j"));
             var voices = song.SongSimplifications[simplification].Notes.NonPercussionVoices();
@@ -34,13 +35,13 @@ namespace DeafComposer.Analysis.Patterns
                         var beatTicks = 96 * 4 / bar.TimeSignature.Denominator;
                         var startTick = bar.TicksFromBeginningOfSong + i * beatTicks;
                         var endTick = startTick + beatTicks;
-                        var chain = GetGraphDataForTicksInterval(startTick, endTick, song, voice);
-                        await AddChain(session, chain, songSimplificationId, voice, startTick);
+                        var beatPattern = GetBeatPatternForTicksInterval(startTick, endTick, song, voice);
+                        if (beatPattern != null)
+                            await AddBeatPattern(session, beatPattern, songSimplificationId, voice, startTick);
                     }
                 }
             }
             await session.CloseAsync();
-            return null;
         }
 
 
@@ -55,7 +56,7 @@ namespace DeafComposer.Analysis.Patterns
         /// <param name="voice"></param>
         /// <param name="simplification"></param>
         /// <returns></returns>
-        private static noteNode GetGraphDataForTicksInterval(long startTick, long endTick, Song song, int voice, int simplification = 1)
+        private static BeatPattern GetBeatPatternForTicksInterval(long startTick, long endTick, Song song, int voice, int simplification = 1)
         {           
             if (song.SongStats.NumberOfTicks < startTick) return null;
             var notes = song.SongSimplifications[simplification].Notes
@@ -64,60 +65,8 @@ namespace DeafComposer.Analysis.Patterns
                 .ThenByDescending(z=>z.Pitch)
                 .ToList();
             if (notes.Count == 0) return null;
-            noteNode currentNode = null;
-            noteNode startNode = null;
 
-            for (var i = 0; i < notes.Count; i++)
-            {
-                if (i == 0)
-                {
-                    currentNode = new noteNode
-                    {
-                        RelativePitch = 0,
-                        TicksFromStart = (int)(notes[i].StartSinceBeginningOfSongInTicks - startTick),
-                        PlaysWith = new List<noteNode>()
-                    };
-                    startNode = currentNode;
-                }
-                // find notes played together with currentNote
-                var j = 0;
-                while (i + j + 1 < notes.Count && notes[i].StartSinceBeginningOfSongInTicks == notes[i + j + 1].StartSinceBeginningOfSongInTicks) j++;
-                // any notes between notes[i] and notes[i + j] start together with notes[i]
-                // notes[i+j+1] is the first note that starts after notes[i] 
-
-                // If there are notes starting together with notes[i] add playsWith relationships
-                //for (var k = 0; k < j; k++)
-                //{
-                //    var node2 = new noteNode
-                //    {
-                //        PatternFinderId = patternFinderId,
-                //        RelativePitch = ConvertFromSemitonesToScaleSteps(notes[i + k + 1].Pitch - notes[0].Pitch),
-                //        TicksFromStart = (int)(notes[i + k + 1].StartSinceBeginningOfSongInTicks - startTick)
-                //    };
-                //    currentNode.PlaysWith.Add(node2);
-                //}
-                if (i + j + 1 < notes.Count)
-                {
-                    var nextNode = new noteNode
-                    {
-                        RelativePitch = ConvertFromSemitonesToScaleSteps(notes[i + j + 1].Pitch - notes[0].Pitch),
-                        TicksFromStart = (int)(notes[i + j + 1].StartSinceBeginningOfSongInTicks - startTick),
-                        PlaysWith = new List<noteNode>()
-                    };
-                    var edgi = new edge
-                    {
-                        DeltaPitch = ConvertFromSemitonesToScaleSteps(notes[i + j + 1].Pitch - notes[i].Pitch),
-                        DeltaTicks = notes[i + j + 1].StartSinceBeginningOfSongInTicks - notes[i].StartSinceBeginningOfSongInTicks,
-                        NextNote = nextNode
-                    };
-                    currentNode.Edge = edgi;
-                    currentNode = nextNode;
-                }
-
-                i += j;
-            }
-            currentNode.Edge = null;
-            return startNode;
+            return new BeatPattern(notes);           
         }
         private async static Task<long> AddSongSimplificationNode(IAsyncSession session, Song song, int simplification = 1)
         {
@@ -147,11 +96,11 @@ namespace DeafComposer.Analysis.Patterns
             }
             return 0;
         }
-        private async static Task AddChain(IAsyncSession session, noteNode n1, long songSimplificationId, int voice, long tick)
+        private async static Task AddBeatPattern(IAsyncSession session, BeatPattern beatPattern, long songSimplificationId, int voice, long tick)
         {
             try
             {
-                var currentNode = n1;
+                var currentNode = beatPattern.FirstNote;
                 string findChainCommand = "";
                 string insertCommand = @$"MATCH (ss)
                                             WHERE ID(ss) = {songSimplificationId}
@@ -164,7 +113,7 @@ namespace DeafComposer.Analysis.Patterns
                         @$"(ss)-[e]->(p:Pattern)-[:ConsistsOf]->(:Note {{TicksFromStart: {currentNode.TicksFromStart}}})" :
                         @$"(:Note {{TicksFromStart: {currentNode.TicksFromStart}}})";
                     insertCommand += isFirstNode ?
-                          @$"(ss)-[:HasPattern {{Voice: {voice}, Tick: {tick}}}]->(p:Pattern)-[:ConsistsOf]->(:Note {{TicksFromStart: {currentNode.TicksFromStart}}})" :
+                          @$"(ss)-[:HasPattern {{Voice: {voice}, Tick: {tick}}}]->(p:Pattern {{Name:'{beatPattern.Name}'}})-[:ConsistsOf]->(:Note {{TicksFromStart: {currentNode.TicksFromStart}}})" :
                         @$"(:Note {{TicksFromStart: {currentNode.TicksFromStart}}})";
                     var nextNode = currentNode.Edge?.NextNote;
                     if (nextNode != null)
@@ -201,176 +150,7 @@ namespace DeafComposer.Analysis.Patterns
             {
                 Log.Error(ex, "An exception was raised trying to add a Note node");
             }
-        }
-        private static Interval ConvertFromSemitonesToScaleSteps(int input)
-        {
-           switch (input)
-            {
-                case 0:
-                    return Interval.unison;
-                case 1:
-                case 2:
-                    return Interval.secUp;
-                case -1:
-                case -2:
-                    return Interval.secDown;
-                case 3:
-                case 4:
-                    return Interval.thirdUp;
-                case -3:
-                case -4:
-                    return Interval.thirdDown;
-                case 5:
-                    return Interval.fourthUp;
-                case -5:
-                    return Interval.fourthDown;
-                case 6:
-                    return Interval.tritoneUp;
-                case -6:
-                    return Interval.tritoneDown;
-                case 7:
-                    return Interval.fifthUp;
-                case -7:
-                    return Interval.fifthDown;
-                case 8:
-                case 9:
-                    return Interval.sixthUp;
-                case -8:
-                case -9:
-                    return Interval.sixthDown;
-                case 10:
-                case 11:
-                    return Interval.sevUp;
-                case 12:
-                    return Interval.octUp;
-                case -12:
-                    return Interval.octDown;
-                case 13:
-                case 14:
-                    return Interval.ninthUp;
-                case -13:
-                case -14:
-                    return Interval.ninthDown;
-                case 15:
-                case 16:
-                    return Interval.third2Up;
-                case -15:
-                case -16:
-                    return Interval.third2Down;
-                case 17:
-                    return Interval.elevenUp;
-                case -17:
-                    return Interval.elevenDown;
-                case 18:
-                    return Interval.tritone2Up;
-                case -18:
-                    return Interval.tritone2Down;
-                case 19:
-                    return Interval.quinta2Up;
-                case -19:
-                    return Interval.fifth2Down;
-                case 20:
-                case 21:
-                    return Interval.treceavaUp;
-                case -20:
-                case -21:
-                    return Interval.treceavaDown;
-                case 22:
-                case 23:
-                    return Interval.sev2Up;
-                case -22:
-                case -23:
-                    return Interval.sev2Down;
-                case 24:
-                    return Interval.octUp;
-                case -24:
-                    return Interval.octDown;
-            }
-            return Interval.other;
-        }
-        public enum Interval
-        {
-            unison,
-            secUp,
-            thirdUp,
-            tritoneUp,
-            fourthUp,
-            fifthUp,
-            sixthUp,
-            sevUp,
-            octUp,
-            ninthUp,
-            third2Up,
-            elevenUp,
-            tritone2Up,
-            quinta2Up,
-            treceavaUp,
-            sev2Up,
-            oct2Up,
-            secDown,
-            thirdDown,
-            tritoneDown,
-            fourthDown,
-            fifthDown,
-            sixthDown,
-            sevDown,
-            octDown,
-            ninthDown,
-            third2Down,
-            elevenDown,
-            tritone2Down,
-            fifth2Down,
-            treceavaDown,
-            sev2Down,
-            oct2Down,
-            other
-        }
-
-        public class noteNode
-        {
-            public string PatternFinderId  { get; set; }
-            public Interval RelativePitch { get; set; }
-            public int TicksFromStart { get; set; }
-            public edge Edge { get; set; }
-            public List<noteNode> PlaysWith { get; set; }
-        }
-
-
-        public class edge
-        {
-            public string PatternFinderId { get; set; }
-            public long DeltaTicks { get; set; }
-            public Interval DeltaPitch { get; set; }
-            public noteNode NextNote { get; set; }
-        }
-
-
-        public class patterFinderNode
-        {
-            public string PatternFinderId { get; set; }
-            public long SongId { get; set; }
-            public int Simplification { get; set; }
-            public int Voice { get; set; }
-            public int QtyBeats { get; set; }
-        }
-
-
+        }     
     }
 }
 
-/*
-Nodes
------
-
-PatternFinder - SongId, Simplification, Voice, QtyBeats
-Note - RelativePitch, Ticks
-
-Edges
------
-
-MovesTo - Ticks, PitchChange
-
-
-
-
-*/
