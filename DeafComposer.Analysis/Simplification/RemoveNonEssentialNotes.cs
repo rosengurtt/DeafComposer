@@ -8,6 +8,90 @@ namespace DeafComposer.Analysis.Simplification
 {
     static partial class SimplificationUtilities
     {
+        /// <summary>
+        /// We remove all notes shorter than a sixteenth except in these cases:
+        /// 
+        /// - the note is part of an ascending or descending scale (we check monotony of at least 5 consecutive short notes that include the one we are evaluating)
+        /// - there isn't any other note less than 48 ticks before or after this note
+        /// </summary>
+        /// <param name="notes"></param>
+        /// <returns></returns>
+        public static List<Note> RemoveNonEssentialNotes(List<Note> notes)
+        {
+            var toleranceInTicks = 4;
+            var retObj = new List<Note>();
+            var voices = Utilities.GetVoices(notes);
+
+            foreach (var voice in voices.Keys)
+            {
+                var voiceNotes = voices[voice].OrderBy(n => n.StartSinceBeginningOfSongInTicks).ThenByDescending(y => y.Pitch).ToList();
+                foreach (var n in voiceNotes)
+                {
+                    if (n.IsPercussion ||
+                        n.DurationInTicks > 24 - toleranceInTicks ||
+                        notes.Where(x => Math.Abs(x.StartSinceBeginningOfSongInTicks - n.StartSinceBeginningOfSongInTicks) < 48).Count() == 1)
+                    {
+                        retObj.Add(n);
+                        continue;
+                    }
+                    // check if note is part of an ascending or descending scale
+                    var neighboorsHigher = voiceNotes.Where(x => x.StartSinceBeginningOfSongInTicks >= n.StartSinceBeginningOfSongInTicks)
+                        .OrderBy(y => y.StartSinceBeginningOfSongInTicks)
+                        .Take(5);
+                    var neighboorsLower = voiceNotes.Where(x => x.StartSinceBeginningOfSongInTicks < n.StartSinceBeginningOfSongInTicks)
+                        .OrderByDescending(y => y.StartSinceBeginningOfSongInTicks)
+                        .Take(4);
+                    var neighboors = neighboorsHigher.Concat(neighboorsLower).ToList();
+                    if (IsNotePartOfAscendingOrDescendingScale(neighboors, n))
+                    {
+                        retObj.Add(n);
+                        continue;
+                    }
+                }
+            }
+            return retObj;
+        }
+
+        /// <summary>
+        /// Receives a group of 9 consecutive notes and checks if there are 5 consecutive notes that are all going up or all going down in pitch
+        /// We also check that the duration of the note investigated is not too different from the duration of the consecutive notes
+        /// </summary>
+        /// <param name="notes"></param>
+        /// <returns></returns>
+        private static bool IsNotePartOfAscendingOrDescendingScale(List<Note> notes, Note n)
+        {
+            notes = notes.OrderBy(x => x.StartSinceBeginningOfSongInTicks).ToList();
+            var averageDuration = notes.Average(x => x.DurationInTicks);
+            if (n.DurationInTicks / (double)averageDuration < 0.6) return false;
+
+            var consecutiveAscendingNotes = 0;
+            var consecutiveDescendingNotes = 0;
+            // Look for ascending notes
+            for (int i = 0; i < notes.Count - 1; i++)
+            {
+                if (notes[i].Pitch < notes[i + 1].Pitch) consecutiveAscendingNotes++;
+                else
+                {
+                    if (consecutiveAscendingNotes >= 5) return true;
+                    consecutiveAscendingNotes = 0;
+                }
+            }
+            if (consecutiveAscendingNotes >= 5) return true;
+            // Look for descending notes
+            for (int i = 0; i < notes.Count - 1; i++)
+            {
+                if (notes[i].Pitch > notes[i + 1].Pitch) consecutiveDescendingNotes++;
+                else
+                {
+                    if (consecutiveDescendingNotes >= 5) return true;
+                    consecutiveDescendingNotes = 0;
+                }
+            }
+            if (consecutiveDescendingNotes >= 5) return true;
+            return false;
+        }
+
+
 
         /// <summary>
         /// Calculates how important is each note and removes a percentage of the notes as per
@@ -16,7 +100,7 @@ namespace DeafComposer.Analysis.Simplification
         /// <param name="notes"></param>
         /// <param name="percentageOfNotesToKeep"></param>
         /// <returns></returns>
-        public static List<Note> RemoveNonEssentialNotes(List<Note> notes, int percentageOfNotesToKeep)
+        public static List<Note> RemoveNonEssentialNotesOld(List<Note> notes, int percentageOfNotesToKeep)
         {
             var retObj = new List<Note>();
             var importance = 100;

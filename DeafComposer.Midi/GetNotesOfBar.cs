@@ -16,7 +16,7 @@ namespace DeafComposer.Midi
                 var barStart = bar.TicksFromBeginningOfSong;
                 var noteStart = n.StartSinceBeginningOfSongInTicks;
                 var noteEnd = n.EndSinceBeginningOfSongInTicks;
-                var barEnd = bar.TicksFromBeginningOfSong + barLengthInTicks;
+                var barEnd = bar.EndTick;
                 if (barEnd < noteStart || noteEnd <= barStart) continue;
 
                 if (!retObj.Contains(n))

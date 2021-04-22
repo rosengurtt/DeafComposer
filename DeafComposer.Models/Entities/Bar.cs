@@ -11,6 +11,16 @@
         public long BarNumber { get; set; }
         public long TicksFromBeginningOfSong { get; set; }
 
+        public long EndTick
+        {
+            get
+            {
+                int standardTicksPerQuarterNote = 96;
+                int barLengthInTicks = TimeSignature.Numerator * (int)standardTicksPerQuarterNote;
+                return TicksFromBeginningOfSong + barLengthInTicks;
+            }
+        }
+
         public long TimeSignatureId { get; set; }
         public TimeSignature TimeSignature { get; set; }
 
