@@ -73,68 +73,62 @@ namespace DeafComposer.Api.Controllers
         }
         private async Task<Song> ProcesameLaSong(string songPath, Band band, Style style)
         {
+            if (!songPath.ToLower().EndsWith(".mid")) return null;
             try
             {
-                if (!songPath.ToLower().EndsWith(".mid")) return null;
-                try
-                {
-                    var lelo = MidiFile.Read(songPath, null);
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, $"Song {songPath} esta podrida");
-                    return null;
-                }
-
-                var midiBase64encoded = FileSystemUtils.GetBase64encodedFile(songPath);
-                midiBase64encoded = MidiUtilities.NormalizeTicksPerQuarterNote(midiBase64encoded);
-
-                Song song = new Song()
-                {
-                    Name = Path.GetFileName(songPath),
-                    Band = band,
-                    Style = style,
-                    MidiBase64Encoded = midiBase64encoded,
-                };
-                song.SongStats = MidiUtilities.GetSongStats(midiBase64encoded);
-                // The following line is  used to get the id of the time signature. If we don't
-                // provide the id when saving the song, it will create a duplicated time signature
-                // in the TimeSignatures table
-                var timeSig = await Repository.GetTimeSignatureAsync(song.SongStats.TimeSignature);
-                song.SongStats.TimeSignatureId = timeSig.Id;
-                song.SongStats.TimeSignature = timeSig;
-
-                var simplificationZero = MidiUtilities.GetSimplificationZeroOfSong(midiBase64encoded);
-                song.Bars = MidiUtilities.GetBarsOfSong(midiBase64encoded, simplificationZero);
-                foreach (var bar in song.Bars)
-                {
-                    var timeSigBar = await Repository.GetTimeSignatureAsync(bar.TimeSignature);
-                    bar.TimeSignatureId = timeSigBar.Id;
-                    bar.TimeSignature = timeSigBar;
-
-                    var keySigBar = await Repository.GetKeySignatureAsync(bar.KeySignature);
-                    bar.KeySignatureId = keySigBar.Id;
-                    bar.KeySignature = keySigBar;
-                }
-                song.TempoChanges = MidiUtilities.GetTempoChanges(midiBase64encoded);
-                song.SongStats.NumberBars = song.Bars.Count();
-                song = await Repository.AddSongAsync(song);
-                simplificationZero.SongId = song.Id;
-                simplificationZero = await Repository.AddSongSimplificationAsync(simplificationZero);
-                song.SongSimplifications = new List<SongSimplification>();
-                song.SongSimplifications.Add(simplificationZero);
-
-                var simplification1 = MidiUtilities.GetSimplification1ofSong(song);
-                simplification1 = await Repository.AddSongSimplificationAsync(simplification1);
-                song.SongSimplifications.Add(simplification1);
-
-                return song;
+                var lelo = MidiFile.Read(songPath, null);
             }
-            catch (Exception sorete)
+            catch (Exception ex)
             {
+                Log.Error(ex, $"Song {songPath} esta podrida");
                 return null;
             }
+
+            var midiBase64encoded = FileSystemUtils.GetBase64encodedFile(songPath);
+            midiBase64encoded = MidiUtilities.NormalizeTicksPerQuarterNote(midiBase64encoded);
+
+            Song song = new Song()
+            {
+                Name = Path.GetFileName(songPath),
+                Band = band,
+                Style = style,
+                MidiBase64Encoded = midiBase64encoded,
+            };
+            song.SongStats = MidiUtilities.GetSongStats(midiBase64encoded);
+            // The following line is  used to get the id of the time signature. If we don't
+            // provide the id when saving the song, it will create a duplicated time signature
+            // in the TimeSignatures table
+            var timeSig = await Repository.GetTimeSignatureAsync(song.SongStats.TimeSignature);
+            song.SongStats.TimeSignatureId = timeSig.Id;
+            song.SongStats.TimeSignature = timeSig;
+
+            var simplificationZero = MidiUtilities.GetSimplificationZeroOfSong(midiBase64encoded);
+            song.Bars = MidiUtilities.GetBarsOfSong(midiBase64encoded, simplificationZero);
+            foreach (var bar in song.Bars)
+            {
+                var timeSigBar = await Repository.GetTimeSignatureAsync(bar.TimeSignature);
+                bar.TimeSignatureId = timeSigBar.Id;
+                bar.TimeSignature = timeSigBar;
+
+                var keySigBar = await Repository.GetKeySignatureAsync(bar.KeySignature);
+                bar.KeySignatureId = keySigBar.Id;
+                bar.KeySignature = keySigBar;
+            }
+            song.TempoChanges = MidiUtilities.GetTempoChanges(midiBase64encoded);
+            song.SongStats.NumberBars = song.Bars.Count();
+            song = await Repository.AddSongAsync(song);
+            simplificationZero.SongId = song.Id;
+            simplificationZero = await Repository.AddSongSimplificationAsync(simplificationZero);
+            song.SongSimplifications = new List<SongSimplification>();
+            song.SongSimplifications.Add(simplificationZero);
+
+            var simplification1 = MidiUtilities.GetSimplification1ofSong(song);
+            simplification1 = await Repository.AddSongSimplificationAsync(simplification1);
+            song.SongSimplifications.Add(simplification1);
+
+            return song;
         }
+
         [HttpGet("compare")]
         public async Task<ActionResult> Compare(string songName, string bandName, string styleName)
         {

@@ -56,8 +56,8 @@ namespace DeafComposer.Analysis.Simplification
             var retObj = (Note)n.Clone();
             var normalizedPitch = (120 + n.Pitch - key.key * 7) % 12;
        
-                if (normalizedPitch == 6 | normalizedPitch == 1 | normalizedPitch == 8) n.Pitch--;
-                else n.Pitch++;
+                if (normalizedPitch == 6 | normalizedPitch == 1 | normalizedPitch == 8) retObj.Pitch--;
+                else retObj.Pitch++;
             return retObj;
         }
     }

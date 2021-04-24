@@ -28,6 +28,8 @@ namespace DeafComposer.Analysis.Patterns
             {
                 foreach (var v2 in voices)
                 {
+                    // When v1 and v2 are different, we want to evaluate them once, having v1=0 and v2=1 will find the same patterns as v1=1 and v2=0
+                    if (v2 < v1) break;
                     var count = 1;
                     var totalBeats = GetTotalBeats(bars);
                     while ((count + 1) * n <= totalBeats)
@@ -51,27 +53,28 @@ namespace DeafComposer.Analysis.Patterns
         /// <param name="notes"></param>
         /// <param name="bars"></param>
         /// <param name="voice"></param>
-        /// <param name="n">Slice 1 is the first slice</param>
-        /// <param name="m"></param>
+        /// <param name="count">Slice 1 is the first slice</param>
+        /// <param name="lolo"></param>
         /// <returns></returns>
-        private static NotesSlice GetNsliceOfLengthMbeats(List<Note> notes, List<Bar> bars, byte voice, int n, int m)
+        private static NotesSlice GetNsliceOfLengthMbeats(List<Note> notes, List<Bar> bars, byte voice, int count, int m)
         {
             // Find the bar number and the beat number inside the bar
             int currentBar = 0;
             int lastBeatOfPreviousBar = 0;
-            while (lastBeatOfPreviousBar < n)
+            while (lastBeatOfPreviousBar < count * m)
             {
                 currentBar++;
                 lastBeatOfPreviousBar += bars[currentBar - 1].TimeSignature.Numerator;
             }
-            lastBeatOfPreviousBar -= bars[currentBar - 1].TimeSignature.Numerator;
+            lastBeatOfPreviousBar = lastBeatOfPreviousBar - bars[currentBar - 1].TimeSignature.Numerator;
             var beatLength = 4 * 96 / bars[currentBar - 1].TimeSignature.Denominator;
-            var beat = n - lastBeatOfPreviousBar;
+            var beat = (count - 1) * m + 1 - lastBeatOfPreviousBar;
 
             // currentBar and beat start in 1, so we have to substract 1
-            var startTick = bars[currentBar - 1].TicksFromBeginningOfSong + (beat-1) * beatLength;
-            var endTick = startTick + beatLength;
-            return new NotesSlice(notes, startTick, endTick, voice, currentBar, beat);
+            var startTick = bars[currentBar - 1].TicksFromBeginningOfSong + (beat - 1) * beatLength;
+            var endTick = startTick + beatLength * m;
+
+            return new NotesSlice(notes, startTick, endTick, voice, bars[currentBar - 1], beat);
         }
 
         private static (long, long) GetBarAndBeatNumberOfTick(List<Bar> bars, long tick)
@@ -93,58 +96,42 @@ namespace DeafComposer.Analysis.Patterns
         /// <returns></returns>
         private static bool IsGoodMatch(MelodyMatch match, int minTicks = 48, int minMatchingNotes = 2)
         {
-            if (match.EndTick - match.StartTick < minTicks) return false;
+            if (match.Duration < minTicks) return false;
             if (match.Matches < minMatchingNotes) return false;
             return true;
         }
 
-        /// <summary>
-        /// When a pattern is played in different parts of a scale, the exact pitches played may be different. For example DO-RE-MI and RE-MI-FA in
-        /// C Major have different relative pitches, but they are the same pattern
-        /// So when we look for a pattern, we assume that a difference of 1 semitone is actually no difference
-        /// </summary>
-        /// <param name="pitch1"></param>
-        /// <param name="pitch2"></param>
-        /// <returns></returns>
-        private static bool ArePitchesTheSame(int pitch1, int pitch2)
-        {
-            return Math.Abs(pitch2 - pitch1) <= 1;
-        }
         private static MelodyMatch GetLargerMatchBetween2Slices(NotesSlice slice1, NotesSlice slice2, List<Bar> bars)
         {
-            if (slice1.Notes.Count == 0 || slice2.Notes.Count == 0) return null;       
+            if (slice1.Notes.Count == 0 || slice2.Notes.Count == 0) return null;
 
             // DifferencePoints has the ticks since the beginning of the slice where there are not matching notes
             var DifferencePoints = new HashSet<long>();
             foreach (var n in slice1.RelativeNotes)
             {
-                if (slice2.RelativeNotes.Where(x => x.Tick == n.Tick && ArePitchesTheSame(x.DeltaPitch, n.DeltaPitch)).Count() == 0)
+                if (slice2.RelativeNotes.Where(x => x.Tick == n.Tick && x.DeltaPitch == n.DeltaPitch).Count() == 0)
                     DifferencePoints.Add(n.Tick);
             }
             foreach (var n in slice2.RelativeNotes)
             {
-                if (slice1.RelativeNotes.Where(x => x.Tick == n.Tick && ArePitchesTheSame(x.DeltaPitch, n.DeltaPitch)).Count() == 0)
+                if (slice1.RelativeNotes.Where(x => x.Tick == n.Tick && x.DeltaPitch == n.DeltaPitch).Count() == 0)
                     DifferencePoints.Add(n.Tick);
             }
             // if slices are perfect match return the whole slices as a match
             if (DifferencePoints.Count == 0)
             {
-                    return new MelodyMatch
-                    {
-                        Slice1 = slice1,
-                        Slice2 = slice2,
-                        Differences = 0,
-                        AreTransposed = !(slice1.Notes[0].Pitch == slice2.Notes[0].Pitch),
-                        Matches = slice1.Notes.Count(),
-                        StartTick = 0,
-                        EndTick = slice1.Duration
-                    };
+                return new MelodyMatch
+                {
+                    Slice1 = slice1,
+                    Slice2 = slice2,
+                    Duration = slice1.Duration
+                };
             }
             // Find interval with the maximum number of matches
 
 
             // We have to add the start and end of the slice time, in order to have all the possible time slices to analyze
-            DifferencePoints.Add(-1);
+            DifferencePoints.Add(0);
             DifferencePoints.Add(slice1.Duration + 1);
 
             // difPoints is DifferencePoints as an ordered list
@@ -156,13 +143,13 @@ namespace DeafComposer.Analysis.Patterns
             for (var i = 0; i < difPoints.Count - 1; i++)
             {
                 var matchingNotes = slice1.RelativeNotes
-                    .Where(x => x.Tick > difPoints[i] && x.Tick < difPoints[i + 1]).ToList();
+                    .Where(x => x.Tick >= difPoints[i] && x.Tick < difPoints[i + 1]).ToList();
                 if (matchingNotes.Count > maxConsecutiveMatches &&
                     // The first relative note of a slice has always pitch 0, so the matching of the first notes of 2 slices, if they are the only match, are not significative
                     !(i == 0 && matchingNotes.Count == 1))
                 {
                     maxConsecutiveMatches = matchingNotes.Count();
-                    start = slice1.RelativeNotes.Where(x => x.Tick > difPoints[i]).OrderBy(y => y.Tick).FirstOrDefault().Tick;
+                    start = slice1.RelativeNotes.Where(x => x.Tick >= difPoints[i]).OrderBy(y => y.Tick).FirstOrDefault().Tick;
                     end = difPoints[i + 1];
                 }
             }
@@ -185,13 +172,9 @@ namespace DeafComposer.Analysis.Patterns
             var (bar2, beat2) = GetBarAndBeatNumberOfTick(bars, slice2.StartTick + start);
             return new MelodyMatch
             {
-                Slice1 = new NotesSlice(notes1, slice1.StartTick + start, slice1.StartTick + end, slice1.Voice, bar1, beat1),
-                Slice2 = new NotesSlice(notes2, slice2.StartTick + start, slice2.StartTick + end, slice2.Voice, bar2, beat2),
-                Matches = countOfMatchingNotes,
-                Differences = 0,
-                AreTransposed = notes1[0].Pitch == notes2[0].Pitch,
-                StartTick = start,
-                EndTick = end > slice1.Duration ? slice1.Duration : end
+                Slice1 = new NotesSlice(notes1, slice1.StartTick + start, slice1.StartTick + end, slice1.Voice, bars[(int)(bar1 - 1)], beat1),
+                Slice2 = new NotesSlice(notes2, slice2.StartTick + start, slice2.StartTick + end, slice2.Voice, bars[(int)(bar2 - 1)], beat2),
+                Duration = end > slice1.Duration ? slice1.Duration - start : end - start
             };
         }
         private static bool IsFirstNoteOfSlice(Note n, NotesSlice s)

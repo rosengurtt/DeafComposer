@@ -122,32 +122,26 @@ namespace DeafComposer.Persistence
 
         public async Task<SongSimplification> AddSongSimplificationAsync(SongSimplification simpl)
         {
-            try
-            {
-                dbContext.SongSimplifications.Add(simpl);
-                await dbContext.SaveChangesAsync();
-                var newNotes = simpl.Notes.Where(n => n.Id == 0).ToList();
-                foreach (var n in newNotes)
-                {
-                    dbContext.Notes.Add(n);
-                }
-                await dbContext.SaveChangesAsync();
-                foreach (var n in simpl.Notes)
-                {
-                    dbContext.SongSimplificationNotes.Add(new SongSimplificationNote
-                    {
-                        NoteId = n.Id,
-                        SongSimplificationId = simpl.Id
-                    });
-                }
-                await dbContext.SaveChangesAsync();
-            }
-            catch (Exception fdsafasdfa)
-            {
 
+            dbContext.SongSimplifications.Add(simpl);
+            await dbContext.SaveChangesAsync();
+            var newNotes = simpl.Notes.Where(n => n.Id == 0).ToList();
+            foreach (var n in newNotes)
+            {
+                dbContext.Notes.Add(n);
             }
+            await dbContext.SaveChangesAsync();
+            foreach (var n in simpl.Notes)
+            {
+                dbContext.SongSimplificationNotes.Add(new SongSimplificationNote
+                {
+                    NoteId = n.Id,
+                    SongSimplificationId = simpl.Id
+                });
+            }
+            await dbContext.SaveChangesAsync();
+
             return simpl;
-
         }
 
         public async Task<List<Note>> GetSongSimplificationNotesAsync(long songSimplificationId)

@@ -25,8 +25,10 @@ namespace DeafComposer.Analysis.Patterns
 
             var simplifiedNotes = SimplificationUtilities.GetSimplifiedNotes(songNotes, song.Bars) ;
 
-            var matches = PatternUtilities.GetMelodyMatchesNbeatsApart(simplifiedNotes, song.Bars, 1);
-            var dameLosPatterns = ExtractPatterns(matches);
+            var matches1 = PatternUtilities.GetMelodyMatchesNbeatsApart(simplifiedNotes, song.Bars, 1);
+            var matches2 = PatternUtilities.GetMelodyMatchesNbeatsApart(simplifiedNotes, song.Bars, 2);
+            var matches4 = PatternUtilities.GetMelodyMatchesNbeatsApart(simplifiedNotes, song.Bars, 4);
+            var dameLosPatterns = ExtractPatterns(matches1).Concat(ExtractPatterns(matches2)).Concat(ExtractPatterns(matches4));
         }
 
         private static List<Models.MelodyPattern> ExtractPatterns(List<MelodyMatch> matches)

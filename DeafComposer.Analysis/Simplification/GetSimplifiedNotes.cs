@@ -10,8 +10,8 @@ namespace DeafComposer.Analysis.Simplification
     {
         public static List<Note> GetSimplifiedNotes(List<Note> notes, List<Bar> bars)
         {
-           // return RemoveNonEssentialNotes(RemoveNotesAlterations(notes, bars));
-            return RemoveNonEssentialNotes(notes);
+            return RemoveNonEssentialNotes(RemoveNotesAlterations(notes, bars));
+           // return RemoveNonEssentialNotes(notes);
         }
     }
 }
