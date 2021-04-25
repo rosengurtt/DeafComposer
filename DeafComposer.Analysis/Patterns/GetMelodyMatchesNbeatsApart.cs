@@ -34,6 +34,10 @@ namespace DeafComposer.Analysis.Patterns
                     var totalBeats = GetTotalBeats(bars);
                     while ((count + 1) * n <= totalBeats)
                     {
+                        if (v1==0 && v2==1 && count == 15 * 2 && n==2)
+                        {
+
+                        }
                         var slice1 = GetNsliceOfLengthMbeats(notes, bars, v1, count, n);
                         var slice2 = GetNsliceOfLengthMbeats(notes, bars, v2, count + 1, n);
                         var match = GetLargerMatchBetween2Slices(slice1, slice2, bars);
@@ -59,14 +63,31 @@ namespace DeafComposer.Analysis.Patterns
         private static NotesSlice GetNsliceOfLengthMbeats(List<Note> notes, List<Bar> bars, byte voice, int count, int m)
         {
             // Find the bar number and the beat number inside the bar
-            int currentBar = 0;
-            int lastBeatOfPreviousBar = 0;
-            while (lastBeatOfPreviousBar < count * m)
+            int currentBar;
+            int lastBeatOfPreviousBar;
+            var firstBarBeats = bars[0].TimeSignature.Numerator;
+            if ((count - 1) * m < firstBarBeats)
             {
-                currentBar++;
-                lastBeatOfPreviousBar += bars[currentBar - 1].TimeSignature.Numerator;
+                currentBar = 1;
+                lastBeatOfPreviousBar = 0;
             }
-            lastBeatOfPreviousBar = lastBeatOfPreviousBar - bars[currentBar - 1].TimeSignature.Numerator;
+            else
+            {
+                currentBar = 2;
+                lastBeatOfPreviousBar = firstBarBeats;
+                while (lastBeatOfPreviousBar <= (count - 1) * m)
+                {
+                    var previousBar = currentBar - 1;
+                    var previousBarBeats = bars[previousBar - 1].TimeSignature.Numerator;
+                    if (lastBeatOfPreviousBar + previousBarBeats <= (count - 1) * m)
+                    {
+                        lastBeatOfPreviousBar += previousBarBeats;
+                        currentBar++;
+                    }
+                    else
+                        break;
+                }
+            }
             var beatLength = 4 * 96 / bars[currentBar - 1].TimeSignature.Denominator;
             var beat = (count - 1) * m + 1 - lastBeatOfPreviousBar;
 

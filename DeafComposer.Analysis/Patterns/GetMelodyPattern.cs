@@ -27,22 +27,43 @@ namespace DeafComposer.Analysis.Patterns
 
             var matches1 = PatternUtilities.GetMelodyMatchesNbeatsApart(simplifiedNotes, song.Bars, 1);
             var matches2 = PatternUtilities.GetMelodyMatchesNbeatsApart(simplifiedNotes, song.Bars, 2);
+            var matches3 = PatternUtilities.GetMelodyMatchesNbeatsApart(simplifiedNotes, song.Bars, 3);
             var matches4 = PatternUtilities.GetMelodyMatchesNbeatsApart(simplifiedNotes, song.Bars, 4);
-            var dameLosPatterns = ExtractPatterns(matches1).Concat(ExtractPatterns(matches2)).Concat(ExtractPatterns(matches4));
+            var matches8 = PatternUtilities.GetMelodyMatchesNbeatsApart(simplifiedNotes, song.Bars, 8);
+            var patterns = ExtractPatterns(matches1.Concat(matches2).Concat(matches4).ToList(), song.Id);            
         }
 
-        private static List<Models.MelodyPattern> ExtractPatterns(List<MelodyMatch> matches)
+        private static Dictionary<Models.MelodyPattern, List<Occurrence>> ExtractPatterns(List<MelodyMatch> matches, long SongId)
         {
-            var retObj = new List<Models.MelodyPattern>();
-            foreach(var m in matches)
+            var retObj = new Dictionary<Models.MelodyPattern, List<Occurrence>>();
+            foreach (var m in matches)
             {
                 var patternito = new Models.MelodyPattern(m);
-                if (!retObj.Where(x => x.AreEqual(patternito)).Any())
-                    retObj.Add(patternito);
+                if (!retObj.Keys.Where(x => x.AreEqual(patternito)).Any())
+                {
+                    retObj[patternito] = new List<Occurrence>();
+                }                  
+                var patternote = retObj.Keys.Where(x => x.AreEqual(patternito)).FirstOrDefault();
+                retObj[patternote] = AddPatternOccurrence(retObj[patternote], patternote, m.Slice1, SongId);
+                retObj[patternote] = AddPatternOccurrence(retObj[patternote], patternote, m.Slice2, SongId);
+
             }
             return retObj;
         }
 
+        private static List<Occurrence> AddPatternOccurrence(List<Occurrence> occurrences, Models.MelodyPattern pattern, NotesSlice slice, long SongId)
+        {
+            var occu = new Occurrence
+            {
+                BarNumber = slice.BarNumber,
+                Beat = slice.BeatNumberFromBarStart,
+                Voice = slice.Voice,
+                SongId = SongId
+            };
+            if (!occurrences.Where(x => x.SongId==SongId&& x.BarNumber==slice.BarNumber&& x.Beat==slice.BeatNumberFromBarStart && x.Voice==slice.Voice).Any())
+                occurrences.Add(occu);
+            return occurrences;
+        }
 
 
         /// <summary>
