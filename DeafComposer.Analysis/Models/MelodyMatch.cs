@@ -11,8 +11,39 @@
         public NotesSlice Slice1 { get; set; }
         public NotesSlice Slice2 { get; set; }
 
+        public long Start { get; set; }
+        public long End { get; set; }
 
-        public long Duration { get; set; }
+        public long DurationInTicks
+        {
+            get
+            {
+                return End - Start;
+            }
+        }
+
+        public double DurationInBeats
+        {
+            get
+            {
+                return DurationInTicks  * 4 / Slice1.Bar.TimeSignature.Denominator / (double) 96;
+            }
+        }
+
+        public (byte, long,long) LocationSlice1
+        {
+            get
+            {
+                return (Slice1.Voice, Slice1.BarNumber, Slice1.BeatNumberFromBarStart);
+            }
+        }
+        public (byte, long, long) LocationSlice2
+        {
+            get
+            {
+                return (Slice2.Voice, Slice2.BarNumber, Slice2.BeatNumberFromBarStart);
+            }
+        }
         /// <summary>
         /// The number of notes that match
         /// </summary>

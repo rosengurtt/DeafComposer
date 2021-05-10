@@ -16,9 +16,9 @@ namespace DeafComposer.Analysis.Patterns
         /// </summary>
         /// <param name="notes"></param>
         /// <param name="bars"></param>
-        /// <param name="n"></param>
+        /// <param name="noBeats"></param>
         /// <returns></returns>
-        public static List<MelodyMatch> GetMelodyMatchesNbeatsApart(List<Note> notes, List<Bar> bars, int n)
+        public static List<MelodyMatch> GetMelodyMatchesWithDurationOfUpToNbeats(List<Note> notes, List<Bar> bars, int noBeats)
         {
             var retObj = new List<MelodyMatch>();
             notes = notes.OrderBy(x => x.StartSinceBeginningOfSongInTicks).ThenByDescending(y => y.Pitch).ToList();
@@ -29,26 +29,29 @@ namespace DeafComposer.Analysis.Patterns
                 foreach (var v2 in voices)
                 {
                     // When v1 and v2 are different, we want to evaluate them once, having v1=0 and v2=1 will find the same patterns as v1=1 and v2=0
-                    if (v2 < v1) break;
-                    var count = 1;
+                    if (v2 < v1) continue;
                     var totalBeats = GetTotalBeats(bars);
-                    while ((count + 1) * n <= totalBeats)
+                    var count1 = 1;                
+                    while (count1 * noBeats <= totalBeats)
                     {
-                        if (v1==0 && v2==1 && count == 15 * 2 && n==2)
+                        var count2 = count1 + noBeats;
+                        while (count2 * noBeats < totalBeats)
                         {
-
+                            var slice1 = GetNsliceOfLengthMbeats(notes, bars, v1, count1, noBeats);
+                            var slice2 = GetNsliceOfLengthMbeats(notes, bars, v2, count2, noBeats);
+                            var match = GetLargerMatchBetween2Slices(slice1, slice2, bars);
+                            if (IsGoodMatch(match, noBeats))
+                                retObj.Add(match);
+                            count2++;
                         }
-                        var slice1 = GetNsliceOfLengthMbeats(notes, bars, v1, count, n);
-                        var slice2 = GetNsliceOfLengthMbeats(notes, bars, v2, count + 1, n);
-                        var match = GetLargerMatchBetween2Slices(slice1, slice2, bars);
-                        if (match != null && IsGoodMatch(match, n * 48, 1 + n))
-                            retObj.Add(match);
-                        count++;
+                        count1++;
                     }
                 }
             }
             return retObj;
         }
+
+
 
 
         /// <summary>
@@ -111,22 +114,36 @@ namespace DeafComposer.Analysis.Patterns
         }
         /// <summary>
         /// Decides if the match between 2 slices is good enough to define a pattern
+        /// The duration must be greater than half the number of beats
+        /// The notes matching must be at least 3 or they could be 2 but only if they follow one another immediately and they are not
+        /// just going up or down the scale
+        /// The notes must have the same intervals between them, but not be exactly the same
         /// </summary>
         /// <param name="match"></param>
         /// <param name="minTicks">The minimum length the match must have</param>
         /// <returns></returns>
-        private static bool IsGoodMatch(MelodyMatch match, int minTicks = 48, int minMatchingNotes = 2)
+        private static bool IsGoodMatch(MelodyMatch match, int numberOfBeats)
         {
-            if (match.Duration < minTicks) return false;
-            if (match.Matches < minMatchingNotes) return false;
-            return true;
+            if (match != null && match.DurationInBeats > numberOfBeats / (double)2 && match.Matches >= 3 &&
+                match.Slice1.Notes[0].Pitch != match.Slice2.Notes[0].Pitch) return true;
+            if (match != null && match.DurationInBeats > numberOfBeats / (double)2 && match.Matches == 2 &&
+                match.Slice1.Notes[0].Pitch != match.Slice2.Notes[0].Pitch &&
+                (match.Slice1.StartTick == match.Slice2.EndTick || match.Slice2.StartTick == match.Slice1.EndTick) &&
+                Math.Abs(match.Slice1.RelativeNotes[1].DeltaPitch) != 1
+                )
+                return true;
+            return false;
         }
 
         private static MelodyMatch GetLargerMatchBetween2Slices(NotesSlice slice1, NotesSlice slice2, List<Bar> bars)
         {
             if (slice1.Notes.Count == 0 || slice2.Notes.Count == 0) return null;
 
-            // DifferencePoints has the ticks since the beginning of the slice where there are not matching notes
+            // if the denominator of the time signatures are different we don't try to match
+            if (slice1.Bar.TimeSignature.Denominator != slice2.Bar.TimeSignature.Denominator)
+                return null;
+
+            // DifferencePoints has the ticks since the beginning of the slice where there are notes that don't match
             var DifferencePoints = new HashSet<long>();
             foreach (var n in slice1.RelativeNotes)
             {
@@ -145,7 +162,8 @@ namespace DeafComposer.Analysis.Patterns
                 {
                     Slice1 = slice1,
                     Slice2 = slice2,
-                    Duration = slice1.Duration
+                    Start = 0,
+                    End = slice1.Duration
                 };
             }
             // Find interval with the maximum number of matches
@@ -158,15 +176,17 @@ namespace DeafComposer.Analysis.Patterns
             // difPoints is DifferencePoints as an ordered list
             var difPoints = DifferencePoints.ToList().OrderBy(x => x).ToList();
 
+            // we use maxConsecutiveMatches to store the highest number of matching notes in the intervals
             var maxConsecutiveMatches = 0;
             long start = 0;
             long end = 0;
+            // we iterate now on the intervals defined by the points in difPoints
             for (var i = 0; i < difPoints.Count - 1; i++)
             {
                 var matchingNotes = slice1.RelativeNotes
                     .Where(x => x.Tick >= difPoints[i] && x.Tick < difPoints[i + 1]).ToList();
                 if (matchingNotes.Count > maxConsecutiveMatches &&
-                    // The first relative note of a slice has always pitch 0, so the matching of the first notes of 2 slices, if they are the only match, are not significative
+                    // The first relative note of a slice has always pitch 0, so the matching of the first notes of 2 slices, if they are the only match, are not significant
                     !(i == 0 && matchingNotes.Count == 1))
                 {
                     maxConsecutiveMatches = matchingNotes.Count();
@@ -191,11 +211,16 @@ namespace DeafComposer.Analysis.Patterns
             var countOfMatchingNotes = IsFirstNoteOfSlice(notes1[0], slice1) ? notes1.Count - 1 : notes1.Count;
             var (bar1, beat1) = GetBarAndBeatNumberOfTick(bars, slice1.StartTick + start);
             var (bar2, beat2) = GetBarAndBeatNumberOfTick(bars, slice2.StartTick + start);
+
+            // We have to make this correction or otherwise the slices will extend 1 tick after the end
+            if (end == slice1.Duration + 1) end--;
+
             return new MelodyMatch
             {
                 Slice1 = new NotesSlice(notes1, slice1.StartTick + start, slice1.StartTick + end, slice1.Voice, bars[(int)(bar1 - 1)], beat1),
                 Slice2 = new NotesSlice(notes2, slice2.StartTick + start, slice2.StartTick + end, slice2.Voice, bars[(int)(bar2 - 1)], beat2),
-                Duration = end > slice1.Duration ? slice1.Duration - start : end - start
+                Start = start,
+                End = end > slice1.Duration ? slice1.Duration : end
             };
         }
         private static bool IsFirstNoteOfSlice(Note n, NotesSlice s)

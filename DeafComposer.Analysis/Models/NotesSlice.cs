@@ -14,8 +14,9 @@ namespace DeafComposer.Analysis.Models
 
         public NotesSlice(List<Note> notes, long startTick, long endTick, byte voice, Bar bar, long beatNumber)
         {
-            BarNumber = bar.BarNumber;
+            Bar = bar;
             BeatNumberFromBarStart = beatNumber;
+            var beatStart = bar.TicksFromBeginningOfSong + (beatNumber - 1) * bar.TimeSignature.Numerator * 96 / bar.TimeSignature.Denominator;
             StartTick = startTick;
             EndTick = endTick;
             Voice = voice;
@@ -27,13 +28,22 @@ namespace DeafComposer.Analysis.Models
                 .ToList();
             RelativeNotes = new List<RelativeNote>();
             if (Notes.Count > 0)
-                RelativeNotes.Add(new RelativeNote(Notes[0], null, StartTick, bar.KeySignature));
+                RelativeNotes.Add(new RelativeNote(Notes[0], null, beatStart, bar.KeySignature));
             for (var i = 1; i < Notes.Count; i++)
-                RelativeNotes.Add(new RelativeNote(Notes[i], Notes[i - 1], startTick, bar.KeySignature));
+                RelativeNotes.Add(new RelativeNote(Notes[i], Notes[i - 1], beatStart, bar.KeySignature));
         }
-        public long BarNumber { get; set; }
+        public long BarNumber
+        {
+            get
+            {
+                return Bar.BarNumber;
+            }
+        }
+        public Bar Bar { get; set; }
 
         public long BeatNumberFromBarStart { get; set; }
+
+
         public byte Voice { get; set; }
         public long StartTick { get; set; }
         public long EndTick { get; set; }

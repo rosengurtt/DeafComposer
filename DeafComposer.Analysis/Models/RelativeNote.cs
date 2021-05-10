@@ -17,15 +17,18 @@ namespace DeafComposer.Analysis.Models
             {
                 DeltaPitchInSemitones = 0;
                 DeltaPitch = 0;
+                DeltaTick = 0;
             }
             else
             {
                 DeltaPitchInSemitones = n.Pitch - previousNote.Pitch;
                 DeltaPitch = GetNotePositioninKey(n, key) - GetNotePositioninKey(previousNote, key);
+                DeltaTick = n.StartSinceBeginningOfSongInTicks - previousNote.StartSinceBeginningOfSongInTicks;
             }
             Tick = n.StartSinceBeginningOfSongInTicks - startTick;
         }
         public long Tick { get; set; }
+        public long DeltaTick { get; set; }
 
         /// <summary>
         /// Represents the difference between the previous pitch and this one

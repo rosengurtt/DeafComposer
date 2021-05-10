@@ -19,18 +19,18 @@ namespace DeafComposer.Analysis.Patterns
 
         public static void GetPatternsOfSongSimplification(Song song, IDriver driver, int simplification = 1)
         {
-            IAsyncSession session = driver.AsyncSession(o => o.WithDatabase("neo4j"));
+           // IAsyncSession session = driver.AsyncSession(o => o.WithDatabase("neo4j"));
             var songNotes = song.SongSimplifications[simplification].Notes;
             var voices = songNotes.NonPercussionVoices();
 
             var simplifiedNotes = SimplificationUtilities.GetSimplifiedNotes(songNotes, song.Bars) ;
 
-            var matches1 = PatternUtilities.GetMelodyMatchesNbeatsApart(simplifiedNotes, song.Bars, 1);
-            var matches2 = PatternUtilities.GetMelodyMatchesNbeatsApart(simplifiedNotes, song.Bars, 2);
-            var matches3 = PatternUtilities.GetMelodyMatchesNbeatsApart(simplifiedNotes, song.Bars, 3);
-            var matches4 = PatternUtilities.GetMelodyMatchesNbeatsApart(simplifiedNotes, song.Bars, 4);
-            var matches8 = PatternUtilities.GetMelodyMatchesNbeatsApart(simplifiedNotes, song.Bars, 8);
-            var patterns = ExtractPatterns(matches1.Concat(matches2).Concat(matches4).ToList(), song.Id);            
+            var matches1 = PatternUtilities.GetMelodyMatchesWithDurationOfUpToNbeats(simplifiedNotes, song.Bars, 1);
+            var matches2 = PatternUtilities.GetMelodyMatchesWithDurationOfUpToNbeats(simplifiedNotes, song.Bars, 2);
+            var matches3 = PatternUtilities.GetMelodyMatchesWithDurationOfUpToNbeats(simplifiedNotes, song.Bars, 3);
+            var matches4 = PatternUtilities.GetMelodyMatchesWithDurationOfUpToNbeats(simplifiedNotes, song.Bars, 4);
+            var patterns = ExtractPatterns(matches1.Concat(matches2).Concat(matches4).ToList(), song.Id);
+            var matrix = new PatternMatrix(patterns);
         }
 
         private static Dictionary<Models.MelodyPattern, List<Occurrence>> ExtractPatterns(List<MelodyMatch> matches, long SongId)
@@ -47,8 +47,71 @@ namespace DeafComposer.Analysis.Patterns
                 retObj[patternote] = AddPatternOccurrence(retObj[patternote], patternote, m.Slice1, SongId);
                 retObj[patternote] = AddPatternOccurrence(retObj[patternote], patternote, m.Slice2, SongId);
 
-            }
+            }            
+            retObj= RemovePatternsThatHappenLessThanNtimes(retObj, 5);
+            retObj = RemovePatternsThatAreEqualToAnotherPatternPlusAstartingSilence(retObj);
+            retObj = RemovePatternsThatOnlyHappenInsideAnotherPattern(retObj);
             return retObj;
+        }
+
+        private static Dictionary<Models.MelodyPattern, List<Occurrence>> RemovePatternsThatAreEqualToAnotherPatternPlusAstartingSilence(Dictionary<Models.MelodyPattern, List<Occurrence>> patterns)
+        {
+            var patternsToRemove = new List<Models.MelodyPattern>();
+            foreach(var pat1 in patterns.Keys)
+            {
+                foreach (var pat2 in patterns.Keys)
+                {
+                    if (pat1.AsString == pat2.AsString && pat1.Duration > pat2.Duration)
+                        patternsToRemove.Add(pat1);
+                }
+            }
+            foreach(var pat in patternsToRemove)
+            {
+                patterns.Remove(pat);
+            }
+            return patterns;
+        }
+        private static Dictionary<Models.MelodyPattern, List<Occurrence>> RemovePatternsThatOnlyHappenInsideAnotherPattern(Dictionary<Models.MelodyPattern, List<Occurrence>> patterns)
+        {
+            var i = 0;
+            var patternsToRemove = new List<Models.MelodyPattern>();
+            foreach (var pat1 in patterns.Keys)
+            {
+                foreach (var pat2 in patterns.Keys)
+                {
+                    if (pat1 == pat2) continue;
+                    if (IsPattern1PartOfPattern2(pat1, pat2) && patterns[pat1].Count <= patterns[pat2].Count + 3)
+                        patternsToRemove.Add(pat1);
+                }
+                i++;
+            }
+            foreach (var pat in patternsToRemove)
+            {
+                patterns.Remove(pat);
+            }
+            return patterns;
+        }
+
+        private static bool IsPattern1PartOfPattern2(Models.MelodyPattern pat1, Models.MelodyPattern pat2)
+        {
+            if (pat2.AsString.Contains(pat1.AsString)) return true;
+            return false;
+        }
+
+
+        private static Dictionary<Models.MelodyPattern, List<Occurrence>> RemovePatternsThatHappenLessThanNtimes(Dictionary<Models.MelodyPattern, List<Occurrence>> patterns, int n)
+        {
+            var patternsToRemove = new List<Models.MelodyPattern>();
+            foreach(var pato in patterns.Keys)
+            {
+                if (patterns[pato].Count < n)
+                    patternsToRemove.Add(pato);
+            }
+            foreach (var pato in patternsToRemove)
+            {
+                patterns.Remove(pato);
+            }
+            return patterns;
         }
 
         private static List<Occurrence> AddPatternOccurrence(List<Occurrence> occurrences, Models.MelodyPattern pattern, NotesSlice slice, long SongId)
