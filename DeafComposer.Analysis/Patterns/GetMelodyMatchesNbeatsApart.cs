@@ -34,7 +34,7 @@ namespace DeafComposer.Analysis.Patterns
                     var count1 = 1;                
                     while (count1 * noBeats <= totalBeats)
                     {
-                        var count2 = count1 + noBeats;
+                        var count2 = count1 + 1;
                         while (count2 * noBeats < totalBeats)
                         {
                             var slice1 = GetNsliceOfLengthMbeats(notes, bars, v1, count1, noBeats);
@@ -60,8 +60,8 @@ namespace DeafComposer.Analysis.Patterns
         /// <param name="notes"></param>
         /// <param name="bars"></param>
         /// <param name="voice"></param>
-        /// <param name="count">Slice 1 is the first slice</param>
-        /// <param name="lolo"></param>
+        /// <param name="count"></param>
+        /// <param name="m"></param>
         /// <returns></returns>
         private static NotesSlice GetNsliceOfLengthMbeats(List<Note> notes, List<Bar> bars, byte voice, int count, int m)
         {
@@ -101,6 +101,12 @@ namespace DeafComposer.Analysis.Patterns
             return new NotesSlice(notes, startTick, endTick, voice, bars[currentBar - 1], beat);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="bars"></param>
+        /// <param name="tick"></param>
+        /// <returns>Bar number, beat number inside bar</returns>
         private static (long, long) GetBarAndBeatNumberOfTick(List<Bar> bars, long tick)
         {
             var bar = bars.Where(b => b.TicksFromBeginningOfSong <= tick).OrderByDescending(y => y.TicksFromBeginningOfSong).FirstOrDefault();
@@ -115,8 +121,7 @@ namespace DeafComposer.Analysis.Patterns
         /// <summary>
         /// Decides if the match between 2 slices is good enough to define a pattern
         /// The duration must be greater than half the number of beats
-        /// The notes matching must be at least 3 or they could be 2 but only if they follow one another immediately and they are not
-        /// just going up or down the scale
+        /// The notes matching must be at least 3 
         /// The notes must have the same intervals between them, but not be exactly the same
         /// </summary>
         /// <param name="match"></param>
@@ -126,12 +131,6 @@ namespace DeafComposer.Analysis.Patterns
         {
             if (match != null && match.DurationInBeats > numberOfBeats / (double)2 && match.Matches >= 3 &&
                 match.Slice1.Notes[0].Pitch != match.Slice2.Notes[0].Pitch) return true;
-            if (match != null && match.DurationInBeats > numberOfBeats / (double)2 && match.Matches == 2 &&
-                match.Slice1.Notes[0].Pitch != match.Slice2.Notes[0].Pitch &&
-                (match.Slice1.StartTick == match.Slice2.EndTick || match.Slice2.StartTick == match.Slice1.EndTick) &&
-                Math.Abs(match.Slice1.RelativeNotes[1].DeltaPitch) != 1
-                )
-                return true;
             return false;
         }
 
